@@ -19,7 +19,16 @@ const fill = (a: AttemptView) =>
  * always written as text beside the pin (never colour alone), and the list above stays the
  * accessible source of truth.
  */
-export function Radar({ attempts, radiusKm }: { attempts: AttemptView[]; radiusKm: number }) {
+export function Radar({
+  attempts,
+  radiusKm,
+  bare = false,
+}: {
+  attempts: AttemptView[]
+  radiusKm: number
+  /** draw just the picture, for use inside another card */
+  bare?: boolean
+}) {
   const latest = new Map<string, AttemptView>()
   for (const a of attempts) {
     const prev = latest.get(a.business.id)
@@ -30,11 +39,8 @@ export function Radar({ attempts, radiusKm }: { attempts: AttemptView[]; radiusK
   )
   if (pins.length === 0) return null
 
-  return (
-    <section className="card p-5" aria-labelledby="radar-h">
-      <h2 id="radar-h" className="text-lg font-bold">
-        Around you
-      </h2>
+  const picture = (
+    <>
       <svg
         viewBox="0 0 320 300"
         role="img"
@@ -95,6 +101,16 @@ export function Radar({ attempts, radiusKm }: { attempts: AttemptView[]; radiusK
         Positions are straight-line distance and compass direction from your search point, not
         driving routes.
       </p>
+    </>
+  )
+
+  if (bare) return picture
+  return (
+    <section className="card p-5" aria-labelledby="radar-h">
+      <h2 id="radar-h" className="text-lg font-bold">
+        Around you
+      </h2>
+      {picture}
     </section>
   )
 }

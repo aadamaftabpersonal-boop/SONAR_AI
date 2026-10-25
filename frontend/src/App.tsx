@@ -2,8 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, api, isTerminalSearch } from './api'
 import type { ClarificationQuestion, PublicConfig, SearchRequest } from './api'
 import { Progress } from './components/Progress'
-import { Radar } from './components/Radar'
 import { Results } from './components/Results'
+import { ResultsMap } from './components/ResultsMap'
 import { SearchForm } from './components/SearchForm'
 import { TrustLedger } from './components/TrustLedger'
 import { useSearchPolling } from './usePolling'
@@ -73,15 +73,45 @@ export default function App() {
 
   return (
     <div className="mx-auto grid max-w-3xl gap-5 px-4 py-6 sm:py-10">
-      <header>
+      <header className="hero">
         <p className="flex items-center gap-3 text-sm font-semibold uppercase tracking-widest text-[var(--accent)]">
           <span className="ping" aria-hidden="true" /> Sonar
         </p>
-        <h1 className="mt-2 text-3xl font-extrabold sm:text-4xl">Search the real world by calling it.</h1>
-        <p className="mt-2 text-[var(--muted)]">
+        <h1 className="mt-2 text-3xl font-extrabold leading-tight sm:text-4xl">
+          Search the real world by calling it.
+        </h1>
+        <p className="mt-2 max-w-2xl text-[var(--muted)]">
           Sonar phones a few consenting shops for you, asks one short question, and shows exactly what
           each one said, when, with the evidence. Silence is never treated as "no".
         </p>
+        {!searchId && (
+          <ol className="steps" aria-label="How it works">
+            <li>
+              <span className="step-n">1</span>
+              <span>
+                <b>Ask</b>
+                <br />
+                what you need and where
+              </span>
+            </li>
+            <li>
+              <span className="step-n">2</span>
+              <span>
+                <b>Sonar calls</b>
+                <br />
+                shops that agreed to be phoned
+              </span>
+            </li>
+            <li>
+              <span className="step-n">3</span>
+              <span>
+                <b>You see</b>
+                <br />
+                what each said, with evidence
+              </span>
+            </li>
+          </ol>
+        )}
       </header>
 
       {search?.demo_mode && (
@@ -145,9 +175,7 @@ export default function App() {
             </div>
           )}
           <Progress search={search} running={running} onCancel={cancel} />
-          {search.radius_km != null && (
-            <Radar attempts={search.attempts} radiusKm={search.radius_km} />
-          )}
+          <ResultsMap search={search} />
           {results && (
             <Results
               results={results.results}

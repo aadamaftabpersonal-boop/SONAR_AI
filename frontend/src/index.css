@@ -130,6 +130,99 @@ body {
   color: var(--text);
 }
 
+/* --- a warmer first impression ------------------------------------------------------------- */
+.hero {
+  position: relative;
+  padding: 1.5rem 1.25rem 1.25rem;
+  border-radius: 20px;
+  border: 1px solid var(--border);
+  background:
+    radial-gradient(120% 140% at 0% 0%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 55%),
+    var(--surface);
+}
+.steps {
+  display: grid;
+  gap: 0.75rem;
+  margin: 1.1rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+@media (min-width: 640px) {
+  .steps {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.steps li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  font-size: 0.85rem;
+  line-height: 1.35;
+  color: var(--muted);
+}
+.step-n {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 1.7rem;
+  height: 1.7rem;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 800;
+  font-size: 0.85rem;
+}
+
+/* each answer wears its state on its left edge; the label text still says it too */
+.result-card {
+  border-left-width: 6px;
+  animation: rise 0.35s ease-out both;
+}
+.result-card[data-state='REPORTED_AVAILABLE'] {
+  border-left-color: var(--good);
+}
+.result-card[data-state='REPORTED_UNAVAILABLE'] {
+  border-left-color: var(--bad);
+}
+.result-card[data-state='ALTERNATIVE_ONLY'],
+.result-card[data-state='UNCERTAIN'] {
+  border-left-color: var(--warn);
+}
+.result-card[data-state='DECLINED'] {
+  border-left-color: var(--muted);
+}
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.skeleton {
+  height: 0.8rem;
+  border-radius: 6px;
+  background: linear-gradient(90deg, var(--surface-2), var(--border), var(--surface-2));
+  background-size: 200% 100%;
+  animation: shimmer 1.4s linear infinite;
+}
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.leaflet-container {
+  font-family: inherit;
+}
+.leaflet-tooltip {
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
 .ping {
   position: relative;
   width: 14px;
@@ -156,7 +249,9 @@ body {
   }
 }
 @media (prefers-reduced-motion: reduce) {
-  .ping::after {
+  .ping::after,
+  .result-card,
+  .skeleton {
     animation: none;
   }
 }

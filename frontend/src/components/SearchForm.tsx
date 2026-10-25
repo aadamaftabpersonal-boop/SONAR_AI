@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import type { ClarificationQuestion, PublicConfig, SearchRequest } from '../api'
+import { MapView } from './MapView'
 
 const PRESETS = [
   { label: 'Demo locality, Bengaluru', lat: 12.9716, lng: 77.5946 },
@@ -28,9 +29,17 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
   const [radius, setRadius] = useState(3)
   const [demo, setDemo] = useState(true)
   const [askEveryone, setAskEveryone] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
 
   const cat = config.categories[category]
   const location = coords ?? { ...PRESETS[preset], label: PRESETS[preset].label }
+  const pickedOnMap = coords?.label === 'Picked on map' ? coords : null
+
+  function fillExample() {
+    setCategory('pharmacy')
+    setItemName('Paracetamol')
+    setAttributes({ strength: '500 mg' })
+  }
 
   function useMyLocation() {
     if (!navigator.geolocation) {
@@ -78,6 +87,13 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
 
   return (
     <form onSubmit={submit} className="card grid gap-5 p-5 sm:p-6" aria-label="New search">
+      <div className="flex flex-wrap items-center gap-2 text-sm">
+        <span className="text-[var(--muted)]">Not sure where to start?</span>
+        <button type="button" className="chip chip-info cursor-pointer" onClick={fillExample}>
+          Try: Paracetamol 500 mg
+        </button>
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm">
           <span className="font-semibold">What are you looking for?</span>
@@ -156,10 +172,19 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
             <button type="button" className="btn" onClick={useMyLocation}>
               Use mine
             </button>
+            <button
+              type="button"
+              className="btn"
+              aria-expanded={pickerOpen}
+              onClick={() => setPickerOpen((open) => !open)}
+            >
+              {pickerOpen ? 'Hide map' : 'Pick on map'}
+            </button>
           </div>
           {coords && (
             <span className="text-[var(--muted)]">
-              Searching around your current location, not the locality above.{' '}
+              Searching around {coords.label === 'Picked on map' ? 'the spot you picked' : 'your current location'},
+              not the locality above.{' '}
               <button type="button" className="font-semibold underline" onClick={() => setCoords(null)}>
                 Use the demo locality instead
               </button>
@@ -183,6 +208,26 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
           {errorFor('radius_km') && <span className="text-[var(--bad)]">{errorFor('radius_km')}</span>}
         </label>
       </div>
+
+      {pickerOpen && (
+        <div className="grid gap-2">
+          <p className="text-sm text-[var(--muted)]">
+            Click the map to choose where to search. The dashed circle is your search radius.
+          </p>
+          <MapView
+            center={{ lat: location.lat, lng: location.lng }}
+            radiusKm={radius}
+            picked={pickedOnMap}
+            onPick={(p) => {
+              setCoords({ lat: p.lat, lng: p.lng, label: 'Picked on map' })
+              setGeoNote(null)
+            }}
+            height={260}
+            ariaLabel="Map for choosing the search location"
+          />
+          <p className="text-xs text-[var(--muted)]">Map data from OpenStreetMap contributors.</p>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <label className="grid gap-1 text-sm">

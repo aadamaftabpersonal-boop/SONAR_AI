@@ -101,6 +101,8 @@ export interface SearchView {
   demo_mode: boolean
   mode?: SearchMode | null
   radius_km?: number | null
+  center_lat?: number | null
+  center_lng?: number | null
   stopped_early?: boolean
   calls_avoided?: number
   created_at: string

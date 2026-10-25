@@ -26,7 +26,7 @@ function ResultCard({ r, now }: { r: ResultView; now: Date }) {
   const simulated = r.data_origin === 'SIMULATED'
   const price = priceText(r)
   return (
-    <li className="card p-4">
+    <li className="card result-card p-4" data-state={r.result_state}>
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
           <div className="flex flex-wrap items-center gap-2">
@@ -129,11 +129,20 @@ export function Results({
       </div>
 
       {answers.length === 0 && (
-        <p className="card p-4 text-sm text-[var(--muted)]" role="status">
-          {complete
-            ? 'No shop gave a usable answer this time.'
-            : 'Answers will appear here as each call finishes.'}
-        </p>
+        <div className="card p-4">
+          <p className="text-sm text-[var(--muted)]" role="status">
+            {complete
+              ? 'No shop gave a usable answer this time.'
+              : 'Answers will appear here as each call finishes.'}
+          </p>
+          {!complete && (
+            <div className="mt-3 grid gap-2" aria-hidden="true">
+              <div className="skeleton" style={{ width: '60%' }} />
+              <div className="skeleton" style={{ width: '85%' }} />
+              <div className="skeleton" style={{ width: '40%' }} />
+            </div>
+          )}
+        </div>
       )}
       <ol className="grid gap-3" aria-live="polite">
         {answers.map((r) => (
