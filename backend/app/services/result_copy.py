@@ -38,6 +38,8 @@ NOTES: dict[ResultState, str] = {
     ),
 }
 
+RETRYING_NOTE = f"Not answered on the first try; calling again. {NOT_UNAVAILABLE}"
+
 RANKING_EXPLANATION = (
     "Ordered by: exact reported matches first, then by freshness, distance, and price. "
     "Order does not mean one answer is more true than another."

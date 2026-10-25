@@ -39,8 +39,14 @@ def ready(session: Session = Depends(get_session)) -> dict[str, str]:
     return {"status": "ready"}
 
 
+class CategoryPublic(BaseModel):
+    display_name: str
+    essential_attributes: list[str]
+    required_fields_default: list[str]
+
+
 class PublicConfig(BaseModel):
-    categories: dict[str, str]
+    categories: dict[str, CategoryPublic]
     min_radius_km: float
     max_radius_km: float
     max_targets_per_search: int
@@ -51,7 +57,14 @@ class PublicConfig(BaseModel):
 @router.get("/api/config/public", response_model=PublicConfig)
 def public_config(settings: Settings = Depends(get_settings)) -> PublicConfig:
     return PublicConfig(
-        categories={name: cfg.display_name for name, cfg in get_categories().items()},
+        categories={
+            name: CategoryPublic(
+                display_name=cfg.display_name,
+                essential_attributes=cfg.essential_attributes,
+                required_fields_default=cfg.required_fields_default,
+            )
+            for name, cfg in get_categories().items()
+        },
         min_radius_km=MIN_RADIUS_KM,
         max_radius_km=MAX_RADIUS_KM,
         max_targets_per_search=settings.max_targets_per_search,

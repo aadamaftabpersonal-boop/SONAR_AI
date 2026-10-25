@@ -43,7 +43,7 @@ from app.services.categories import get_categories
 from app.services.directory import load_candidates
 from app.services.geo import distance_km
 from app.services.query import parse
-from app.services.result_copy import RANKING_EXPLANATION
+from app.services.result_copy import RANKING_EXPLANATION, RETRYING_NOTE
 from app.services.results import (
     derive_result_state,
     sort_results,
@@ -301,7 +301,10 @@ def get_results(
             origin = (
                 DataOrigin.SIMULATED if attempt.provider == "simulated" else DataOrigin.LIVE_CALL
             )
-            items.append(view_without_response(_state_for(attempt, None), ref, origin))
+            view = view_without_response(_state_for(attempt, None), ref, origin)
+            if attempt.attempt_number > 1 and view.result_state == ResultState.PENDING:
+                view.note = RETRYING_NOTE  # keep the earlier silence visible while the retry runs
+            items.append(view)
 
     return ResultsView(
         search_id=job.id,

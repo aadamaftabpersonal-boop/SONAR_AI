@@ -277,6 +277,12 @@ async def test_no_answer_is_retried_once_then_stops(world):
     assert attempts[0].status == "NO_ANSWER" and attempts[1].status == "PENDING"
     assert attempts[1].not_before >= NOW + timedelta(seconds=world.settings.retry_backoff_seconds)
 
+    # while the retry is queued, the first silence stays visible and is never called unavailable
+    shown = results_by_name(world, sid)["Flaky"]
+    assert shown["result_state"] == "PENDING"
+    assert "Not answered on the first try" in shown["note"]
+    assert "does not mean the item is unavailable" in shown["note"]
+
     # not due yet: nothing dials
     await world.orch.tick()
     assert sim.calls_started == 1
