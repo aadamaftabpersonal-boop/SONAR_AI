@@ -37,6 +37,13 @@ class Settings(BaseSettings):
     business_daily_call_cap: int = 4
     global_daily_call_budget: int = 40
 
+    # Bible 28 per-field freshness (ASSUMPTION A-13, tune in rehearsal)
+    freshness_ttl_availability_minutes: int = 60
+    freshness_ttl_quantity_minutes: int = 30
+    freshness_ttl_wait_minutes: int = 15
+    freshness_ttl_open_minutes: int = 15
+    freshness_ttl_price_minutes: int = 1440
+
     # Bible 56 (Wave 2); every feature is off until enabled (NFR-15)
     stop_rule_k: int = 2
     prior_min_observations: int = 5
