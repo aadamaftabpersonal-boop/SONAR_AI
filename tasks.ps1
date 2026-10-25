@@ -37,8 +37,10 @@ switch ($Task) {
         Run $Py @("-m", "ruff", "format", ".") $Backend
     }
     "secrets" { Run $Py @("scripts/check_no_secrets.py") }
+    "claims" { Run $Py @("scripts/check_claims.py") }
     "check" {
         & $PSCommandPath lint; & $PSCommandPath test; & $PSCommandPath secrets
+        & $PSCommandPath claims
     }
-    default { Write-Host "tasks: setup doctor db-up db-down run test test-int lint fmt secrets check" }
+    default { Write-Host "tasks: setup doctor db-up db-down run test test-int lint fmt secrets claims check" }
 }

@@ -35,4 +35,7 @@ fmt:
 secrets:
 	$(PY) scripts/check_no_secrets.py
 
-check: lint test secrets
+claims:
+	$(PY) scripts/check_claims.py
+
+check: lint test secrets claims
