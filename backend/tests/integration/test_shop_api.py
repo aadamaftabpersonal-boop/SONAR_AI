@@ -159,6 +159,7 @@ def test_searches_report_the_radius_and_each_shops_bearing(world):
     r = world.client.post("/api/searches", json=search_body(demo_mode=True), headers=H).json()
     view = world.client.get(f"/api/searches/{r['search_id']}").json()
     assert view["radius_km"] == 3.0
+    assert view["center_lat"] == pytest.approx(LAT) and view["center_lng"] == pytest.approx(LNG)
     ref = view["attempts"][0]["business"]
     assert ref["distance_km"] > 0 and (ref["bearing_deg"] < 1 or ref["bearing_deg"] > 359)
 

@@ -170,6 +170,8 @@ class SearchView(BaseModel):
     demo_mode: bool
     mode: SearchMode | None = None
     radius_km: float | None = None
+    center_lat: float | None = None  # the search point, so the map can place shops from
+    center_lng: float | None = None  # their distance and bearing
     stopped_early: bool = False
     calls_avoided: int = 0
     created_at: datetime
