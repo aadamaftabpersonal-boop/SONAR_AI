@@ -44,7 +44,7 @@ from app.providers.registry import ProviderRegistry
 from app.services import selector
 from app.services.categories import get_categories
 from app.services.directory import load_candidates
-from app.services.geo import distance_km
+from app.services.geo import bearing_deg, distance_km
 from app.services.planning import PlannedCall, plan_order
 from app.services.query import parse
 from app.services.result_copy import RANKING_EXPLANATION, RETRYING_NOTE
@@ -222,16 +222,17 @@ def create_search(
 
 
 def _business_ref(job: SearchJob, business: Business) -> BusinessRef:
-    dist = None
+    dist = bearing = None
     if None not in (job.center_lat, job.center_lng, business.latitude, business.longitude):
-        dist = round(
-            distance_km(job.center_lat, job.center_lng, business.latitude, business.longitude), 2
-        )
+        args = (job.center_lat, job.center_lng, business.latitude, business.longitude)
+        dist = round(distance_km(*args), 2)
+        bearing = round(bearing_deg(*args), 1)
     return BusinessRef(
         id=business.id,
         name=business.name,
         kind=business.kind,
         distance_km=dist,
+        bearing_deg=bearing,
         address=business.address,
     )
 
@@ -313,6 +314,7 @@ def get_search(search_id: str, session: Session = Depends(get_session)) -> Searc
         status=SearchStatus(job.status),
         demo_mode=job.demo_mode,
         mode=SearchMode(job.mode),
+        radius_km=float(job.radius_km) if job.radius_km is not None else None,
         stopped_early=job.stopped_early,
         calls_avoided=job.calls_avoided,
         created_at=job.created_at,

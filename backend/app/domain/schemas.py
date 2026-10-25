@@ -125,6 +125,7 @@ class BusinessRef(BaseModel):
     name: str
     kind: BusinessKind
     distance_km: float | None = None
+    bearing_deg: float | None = None  # compass bearing from the search centre (radar view)
     address: str | None = None
 
 
@@ -168,6 +169,7 @@ class SearchView(BaseModel):
     status: SearchStatus
     demo_mode: bool
     mode: SearchMode | None = None
+    radius_km: float | None = None
     stopped_early: bool = False
     calls_avoided: int = 0
     created_at: datetime

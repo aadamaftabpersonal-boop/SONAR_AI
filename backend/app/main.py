@@ -6,15 +6,18 @@ import logging
 import uuid
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
-from app.api import misc, searches, webhooks
+from app.api import misc, searches, shop, webhooks
 from app.api.deps import SlidingWindowLimiter
-from app.api.errors import install_error_handlers
+from app.api.errors import ApiError, install_error_handlers
 from app.config import Settings, bolna_agent_ids, get_settings
 from app.db.session import get_engine, make_session_factory
+from app.domain.enums import ErrorClass
 from app.providers.bolna import BolnaVoiceProvider
 from app.providers.registry import ProviderRegistry
 from app.providers.simulated import SimulatedVoiceProvider
@@ -101,7 +104,25 @@ def create_app() -> FastAPI:
     app.include_router(misc.router)
     app.include_router(searches.router)
     app.include_router(webhooks.router)
+    app.include_router(shop.router)
+    _serve_frontend(app, settings)  # registered last so it never shadows an API route
     return app
+
+
+def _serve_frontend(app: FastAPI, settings: Settings) -> None:
+    dist = Path(settings.frontend_dist).resolve() if settings.frontend_dist else None
+    if dist is None or not (dist / "index.html").is_file():
+        return
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def spa(path: str):
+        if path.startswith(("api/", "health")):
+            raise ApiError(404, ErrorClass.NOT_FOUND, "Not found")
+        candidate = (dist / path).resolve()
+        # serve a real file, but never anything outside the build folder (no path traversal)
+        if path and candidate.is_file() and dist in candidate.parents:
+            return FileResponse(candidate)
+        return FileResponse(dist / "index.html", headers={"Cache-Control": "no-store"})
 
 
 app = create_app()
