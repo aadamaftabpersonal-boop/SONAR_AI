@@ -1369,6 +1369,8 @@ Additional categories via config; permitted directory source; business onboardin
 | D-040 | **Ground-truth study as a first-class measurement**; report n/N and inconclusives only | credibility; WP-9 | trust vendor confidence | — |
 | D-041 | **Race clock** shows a comparison only with a dated, measured manual baseline | WP-20 | assumed average | — |
 | D-042 | **Watches and `/api/v1/ask` are P2**; schema reserved now | L3/L5 story without MVP risk | build now | after Wave 2 |
+| D-044 | **Sync SQLAlchemy 2 + psycopg3** (not async); FastAPI endpoints are plain `def`; background loops use threads/`to_thread` | simplest correct option for a single-process MVP; real Postgres in tests; concurrency proven by the `claim_next` race test | async SQLAlchemy | the orchestrator needs many concurrent in-flight calls (then move DB work off the event loop) |
+| D-045 | **Local DB port 55432** (compose default); two native PostgreSQL servers already use 5432 and 5433 on the dev machine | stop tests silently hitting the wrong server | 5432 | the dev machine changes |
 | D-043 | **Business model is hypotheses**, each with a cheapest test (§47) | honesty with YC audience | assert market size | customer discovery done |
 
 ## 44. Source links and research notes
