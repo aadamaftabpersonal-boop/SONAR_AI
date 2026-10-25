@@ -11,7 +11,7 @@ from fastapi import APIRouter, Depends, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_clock, rate_limit_search, require_access_key
+from app.api.deps import get_clock, get_providers, rate_limit_search, require_access_key
 from app.api.errors import ApiError
 from app.config import Settings, get_settings
 from app.db.models import Business, BusinessResponse, CallAttempt, SearchJob
@@ -40,6 +40,7 @@ from app.domain.schemas import (
     SearchView,
 )
 from app.domain.transitions import is_terminal
+from app.providers.registry import ProviderRegistry
 from app.services import selector
 from app.services.categories import get_categories
 from app.services.directory import load_candidates
@@ -82,6 +83,22 @@ def _job_or_404(session: Session, search_id: str) -> SearchJob:
     return job
 
 
+def _require_live_calling(payload: SearchRequest, providers: ProviderRegistry) -> None:
+    """A live search must never be planned if it can never be dialed."""
+    if payload.demo_mode:
+        return
+    unavailable = "Live calling is not configured on this server. Use demo mode."
+    if not providers.has("bolna"):
+        raise ApiError(503, ErrorClass.PROVIDER_UNAVAILABLE, unavailable)
+    has_agent = getattr(providers.get("bolna"), "has_agent", None)
+    if has_agent is not None and not has_agent(payload.category):
+        raise ApiError(
+            503,
+            ErrorClass.PROVIDER_UNAVAILABLE,
+            f"No voice agent is configured for '{payload.category}'. Use demo mode.",
+        )
+
+
 @router.post(
     "/searches",
     status_code=202,
@@ -94,6 +111,7 @@ def create_search(
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings),
     clock: Callable[[], datetime] = Depends(get_clock),
+    providers: ProviderRegistry = Depends(get_providers),
 ) -> SearchCreated:
     try:
         parsed = parse(payload, get_categories())
@@ -101,6 +119,7 @@ def create_search(
         raise ApiError(422, ErrorClass.VALIDATION, exc.message, exc.field) from exc
     if isinstance(parsed, Refusal):
         raise ApiError(422, ErrorClass.UNSUPPORTED_QUERY, parsed.message)
+    _require_live_calling(payload, providers)
 
     jobs = SearchRepo(session)
     now = clock()

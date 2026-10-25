@@ -41,6 +41,8 @@ def engine() -> Iterator[Engine]:
 @pytest.fixture
 def session(engine: Engine) -> Iterator[Session]:
     with engine.begin() as conn:
+        # a leftover connection holding a lock must fail loudly, not hang the whole run
+        conn.execute(text("SET LOCAL lock_timeout = '15s'"))
         tables = conn.execute(
             text(
                 "SELECT string_agg(quote_ident(tablename), ', ') FROM pg_tables "

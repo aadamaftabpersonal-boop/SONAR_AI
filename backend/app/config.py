@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     bolna_api_key: str = ""
     bolna_api_base_url: str = "https://api.bolna.ai"
     bolna_from_phone_number: str = ""
+    bolna_agent_id_pharmacy: str = ""
+    bolna_agent_id_computer_repair: str = ""
     business_seed_path: str = "data/businesses.local.yaml"
     allowed_origins: str = "http://localhost:5173"
     log_level: str = "INFO"
@@ -75,6 +77,15 @@ class Settings(BaseSettings):
     feature_voice_ui: bool = False
     feature_compiler: bool = False
     feature_watches: bool = False
+
+
+def bolna_agent_ids(settings: Settings) -> dict[str, str]:
+    """Category -> Bolna agent id, for the categories that have one configured."""
+    ids = {
+        "pharmacy": settings.bolna_agent_id_pharmacy,
+        "computer_repair": settings.bolna_agent_id_computer_repair,
+    }
+    return {category: agent for category, agent in ids.items() if agent}
 
 
 @lru_cache

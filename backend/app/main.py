@@ -13,8 +13,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api import misc, searches, webhooks
 from app.api.deps import SlidingWindowLimiter
 from app.api.errors import install_error_handlers
-from app.config import get_settings
+from app.config import Settings, bolna_agent_ids, get_settings
 from app.db.session import get_engine, make_session_factory
+from app.providers.bolna import BolnaVoiceProvider
 from app.providers.registry import ProviderRegistry
 from app.providers.simulated import SimulatedVoiceProvider
 from app.services.orchestrator import Orchestrator
@@ -34,9 +35,23 @@ DEMO_CYCLE = (
 )
 
 
-def default_providers() -> ProviderRegistry:
-    # The Bolna provider is registered here once spike S-4/S-6 fixtures exist (T5.3).
-    return ProviderRegistry({"simulated": SimulatedVoiceProvider(cycle=DEMO_CYCLE)})
+def default_providers(settings: Settings | None = None) -> ProviderRegistry:
+    """The simulator is always available. The real provider is registered only when a key and at
+    least one agent id are configured, so a missing key can never cause a real call."""
+    settings = settings or get_settings()
+    registry = ProviderRegistry({"simulated": SimulatedVoiceProvider(cycle=DEMO_CYCLE)})
+    agents = bolna_agent_ids(settings)
+    if settings.bolna_api_key and agents:
+        registry.register(
+            "bolna",
+            BolnaVoiceProvider(
+                settings.bolna_api_key, settings.bolna_api_base_url, agent_ids=agents
+            ),
+        )
+        log.info("live calling enabled for: %s", ", ".join(sorted(agents)))
+    else:
+        log.info("live calling is not configured; demo mode only")
+    return registry
 
 
 def create_app() -> FastAPI:
@@ -65,7 +80,7 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="Sonar", version="0.1.0", lifespan=lifespan)
     app.state.search_limiter = SlidingWindowLimiter(settings.rate_limit_search_per_minute)
-    app.state.providers = default_providers()
+    app.state.providers = default_providers(settings)
 
     origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
     app.add_middleware(

@@ -6,9 +6,12 @@ from sqlalchemy import select
 
 from app.api.deps import get_clock
 from app.config import Settings, get_settings
-from app.db.models import BusinessResponse, CallAttempt
+from app.db.models import BusinessResponse, CallAttempt, SearchJob
 from app.db.session import get_session
 from app.main import create_app
+from app.providers.bolna import BolnaVoiceProvider
+from app.providers.registry import ProviderRegistry
+from app.providers.simulated import SimulatedVoiceProvider
 from tests.factories import make_attempt, make_business, make_job
 
 pytestmark = pytest.mark.integration
@@ -35,6 +38,8 @@ def body(**over):
 @pytest.fixture
 def client(engine, session, session_factory):
     app = create_app()
+    # live searches need a "bolna" provider to be registered; a stand-in is enough to plan them
+    app.state.providers.register("bolna", SimulatedVoiceProvider())
 
     def _session():
         with session_factory() as s:
@@ -103,6 +108,7 @@ def test_unconfigured_key_fails_closed(client):
 
 def test_rate_limit_returns_429(engine, session, session_factory):
     app = create_app()
+    app.state.providers.register("bolna", SimulatedVoiceProvider())
 
     def _session():
         with session_factory() as s:
@@ -198,6 +204,37 @@ def test_create_plans_nearest_targets_and_returns_immediately(client, session):
     attempts = session.execute(select(CallAttempt)).scalars().all()
     assert {a.status for a in attempts} == {"PENDING"}
     assert {a.provider for a in attempts} == {"bolna"}
+
+
+def test_a_live_search_is_refused_when_live_calling_is_not_configured(client, session):
+    shop(session)
+    client.app.state.providers = ProviderRegistry({"simulated": SimulatedVoiceProvider()})
+    r = client.post("/api/searches", json=body(), headers=HEADERS)
+    assert r.status_code == 503
+    assert r.json()["error"]["code"] == "PROVIDER_UNAVAILABLE"
+    assert "Use demo mode" in r.json()["error"]["message"]
+    # nothing was planned that could never be dialed
+    assert session.execute(select(CallAttempt)).first() is None
+    assert session.execute(select(SearchJob)).first() is None
+    # demo mode is unaffected
+    assert (
+        client.post("/api/searches", json=body(demo_mode=True), headers=HEADERS).status_code == 202
+    )
+
+
+def test_a_live_search_is_refused_for_a_category_without_an_agent(client, session):
+    shop(session)
+    provider = BolnaVoiceProvider("k", agent_ids={"computer_repair": "agent-1"})
+    client.app.state.providers = ProviderRegistry({"bolna": provider})
+    r = client.post("/api/searches", json=body(), headers=HEADERS)  # pharmacy has no agent
+    assert r.status_code == 503 and "pharmacy" in r.json()["error"]["message"]
+
+
+def test_a_live_search_is_planned_when_the_category_has_an_agent(client, session):
+    shop(session)
+    provider = BolnaVoiceProvider("k", agent_ids={"pharmacy": "agent-1"})
+    client.app.state.providers = ProviderRegistry({"bolna": provider})
+    assert client.post("/api/searches", json=body(), headers=HEADERS).status_code == 202
 
 
 def test_demo_mode_uses_the_simulated_provider(client, session):
