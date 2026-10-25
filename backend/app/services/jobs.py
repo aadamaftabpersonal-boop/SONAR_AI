@@ -12,6 +12,7 @@ from app.db.models import CallAttempt, SearchJob
 from app.db.repositories import AttemptRepo, SearchRepo
 from app.domain.enums import CallStatus, SearchStatus
 from app.domain.transitions import is_terminal, search_status_from_attempts
+from app.services.stoprule import STOP_REASON
 
 OPEN_STATUSES = (SearchStatus.CREATED, SearchStatus.RUNNING)
 
@@ -36,6 +37,9 @@ def refresh_job(session: Session, job_id: uuid.UUID, now: datetime) -> SearchSta
         return SearchStatus(job.status)  # clarification / no-eligible jobs have no attempts
 
     latest = latest_attempts(attempts)
+    if job.stopped_early:
+        # shops deliberately not called (enough had confirmed) do not make the search "partial"
+        latest = [a for a in latest if a.failure_reason != STOP_REASON]
     statuses = [CallStatus(a.status) for a in latest]
     cancelled = job.status == SearchStatus.CANCELLED
     deadline_passed = job.deadline_at is not None and now >= job.deadline_at

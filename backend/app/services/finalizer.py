@@ -21,6 +21,7 @@ from app.db.repositories import (
     BusinessRepo,
     ResponseRepo,
     SearchRepo,
+    StatsRepo,
 )
 from app.domain.enums import (
     CallStatus,
@@ -33,7 +34,9 @@ from app.providers.base import ProviderError
 from app.providers.registry import ProviderRegistry
 from app.services.categories import get_categories
 from app.services.jobs import refresh_job
-from app.services.validator import validate
+from app.services.stats import apply_outcome
+from app.services.stopping import maybe_stop
+from app.services.validator import ValidatedAnswer, validate
 
 log = logging.getLogger("sonar.finalizer")
 
@@ -135,10 +138,16 @@ async def finalize_attempt(
         attempt = attempts.get(attempt_id)
         assert attempt is not None
 
+        answer, written = None, False
         if mapped == CallStatus.COMPLETED:
-            _store_result(s, attempt, job, record, now)
+            answer, written = _store_result(s, attempt, job, record, now)
         elif applied:
             plan_retry(s, attempt, job, now, settings)
+
+        if applied:
+            _record_history(s, attempt, mapped, answer, record.duration_seconds, now, settings)
+        if written:
+            maybe_stop(s, job, settings, now)
 
         refresh_job(s, job.id, now)
         s.commit()
@@ -151,9 +160,39 @@ def attempt_job_id(session: Session, attempt_id: uuid.UUID) -> uuid.UUID:
     return attempt.search_job_id
 
 
+def _record_history(
+    session: Session,
+    attempt: CallAttempt,
+    status: CallStatus,
+    answer: ValidatedAnswer | None,
+    duration_seconds: int | None,
+    now: datetime,
+    settings: Settings,
+) -> None:
+    """Update the shop's call history (Wave 2). It only orders calls and feeds a labelled
+    history line; simulated runs are excluded unless explicitly enabled (D-022)."""
+    if not (settings.feature_stop_rule or settings.feature_history):
+        return
+    if attempt.provider == "simulated" and not settings.stats_include_simulated:
+        return
+    availability = answer.availability if answer and answer.create_response else None
+    StatsRepo(session).update(
+        attempt.business_id,
+        lambda stats: apply_outcome(
+            stats,
+            status=status,
+            availability=availability,
+            duration_seconds=duration_seconds,
+            now=now,
+        ),
+    )
+
+
 def _store_result(
     session: Session, attempt: CallAttempt, job: SearchJob, record, now: datetime
-) -> None:
+) -> tuple[ValidatedAnswer, bool]:
+    """Validate and store one call's result. Returns the validated answer and whether a response
+    row was newly written (False on a repeat finalize)."""
     parsed = ParsedQuery.model_validate(job.parsed_query)
     price_max = get_categories()[parsed.category].price_max_plausible_inr
     answer = validate(
@@ -169,7 +208,7 @@ def _store_result(
     if not answer.create_response:
         # voicemail / IVR / not completed: no response row, so it can never read as unavailable
         attempt.failure_reason = answer.failure_reason
-        return
+        return answer, False
 
     written = ResponseRepo(session).insert_once(
         call_attempt_id=attempt.id,
@@ -207,3 +246,4 @@ def _store_result(
             business_id=attempt.business_id,
             detail={"cancelled_pending": cancelled},
         )
+    return answer, written

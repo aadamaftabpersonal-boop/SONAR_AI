@@ -168,6 +168,8 @@ class SearchView(BaseModel):
     status: SearchStatus
     demo_mode: bool
     mode: SearchMode | None = None
+    stopped_early: bool = False
+    calls_avoided: int = 0
     created_at: datetime
     started_at: datetime | None = None
     completed_at: datetime | None = None
@@ -197,7 +199,16 @@ class Reported(BaseModel):
     open_status: str | None = None
 
 
+class HistoryView(BaseModel):
+    """Past record, shown beside (never instead of) a live answer, and always labelled."""
+
+    answered: int
+    reported_available: int
+    label: str = "HISTORY"
+
+
 class ResultView(BaseModel):
+    history: HistoryView | None = None
     business: BusinessRef
     result_state: ResultState
     data_origin: DataOrigin

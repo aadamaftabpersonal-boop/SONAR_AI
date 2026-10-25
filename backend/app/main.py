@@ -25,10 +25,12 @@ log = logging.getLogger("sonar")
 DEMO_CYCLE = (
     "available",
     "unavailable",
+    "available",
     "no_answer",
     "ambiguous",
-    "available_no_price",
+    "available",
     "alternative_only",
+    "available_no_price",
 )
 
 

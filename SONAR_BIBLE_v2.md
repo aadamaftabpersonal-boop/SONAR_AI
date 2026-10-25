@@ -1371,6 +1371,8 @@ Additional categories via config; permitted directory source; business onboardin
 | D-042 | **Watches and `/api/v1/ask` are P2**; schema reserved now | L3/L5 story without MVP risk | build now | after Wave 2 |
 | D-044 | **Sync SQLAlchemy 2 + psycopg3** (not async); FastAPI endpoints are plain `def`; background loops use threads/`to_thread` | simplest correct option for a single-process MVP; real Postgres in tests; concurrency proven by the `claim_next` race test | async SQLAlchemy | the orchestrator needs many concurrent in-flight calls (then move DB work off the event loop) |
 | D-045 | **Local DB port 55432** (compose default); two native PostgreSQL servers already use 5432 and 5433 on the dev machine | stop tests silently hitting the wrong server | 5432 | the dev machine changes |
+| D-046 | **Phase 14 implemented behind flags** (`FEATURE_STOP_RULE`, `FEATURE_HISTORY`, default off). Shop history excludes simulated runs unless `STATS_INCLUDE_SIMULATED=true` | demos must not pollute real stats (D-022 extended); NFR-15 holds because every Part I test still passes unchanged | always on | M1 reached and rehearsal data exists |
+| D-047 | **A search that stopped early ends `COMPLETED`, not `COMPLETED_PARTIAL`**; attempts cancelled with reason `STOP_RULE_SATISFIED` are excluded from the aggregate and shown as "Not called" | skipping shops on purpose is the feature, not a shortfall | `COMPLETED_PARTIAL` | UX review |
 | D-043 | **Business model is hypotheses**, each with a cheapest test (§47) | honesty with YC audience | assert market size | customer discovery done |
 
 ## 44. Source links and research notes

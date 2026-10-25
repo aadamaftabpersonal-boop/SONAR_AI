@@ -66,6 +66,26 @@ businesses:
     latitude: 12.9730
     longitude: 77.5960
 
+  - name: Example Pharmacy Four
+    phone_e164: "+910000000008"
+    category: pharmacy
+    kind: REAL_BUSINESS
+    participation_status: CONSENTED
+    consent_recorded_at: "2026-10-27T10:30:00+05:30"
+    consent_note: "Example only."
+    latitude: 12.9690
+    longitude: 77.5990
+
+  - name: Example Pharmacy Five
+    phone_e164: "+910000000009"
+    category: pharmacy
+    kind: REAL_BUSINESS
+    participation_status: CONSENTED
+    consent_recorded_at: "2026-10-27T10:45:00+05:30"
+    consent_note: "Example only."
+    latitude: 12.9760
+    longitude: 77.5870
+
   - name: Example Repair Shop
     phone_e164: "+910000000007"
     category: computer_repair

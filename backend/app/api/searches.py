@@ -15,7 +15,7 @@ from app.api.deps import get_clock, rate_limit_search, require_access_key
 from app.api.errors import ApiError
 from app.config import Settings, get_settings
 from app.db.models import Business, BusinessResponse, CallAttempt, SearchJob
-from app.db.repositories import AttemptRepo, AuditRepo, SearchRepo
+from app.db.repositories import AttemptRepo, AuditRepo, SearchRepo, StatsRepo
 from app.db.session import get_session
 from app.domain.enums import (
     Availability,
@@ -23,6 +23,7 @@ from app.domain.enums import (
     DataOrigin,
     ErrorClass,
     ResultState,
+    SearchMode,
     SearchStatus,
 )
 from app.domain.schemas import (
@@ -30,6 +31,7 @@ from app.domain.schemas import (
     BusinessRef,
     Clarification,
     Counts,
+    HistoryView,
     QueryValidationError,
     Refusal,
     ResultsView,
@@ -42,6 +44,7 @@ from app.services import selector
 from app.services.categories import get_categories
 from app.services.directory import load_candidates
 from app.services.geo import distance_km
+from app.services.planning import PlannedCall, plan_order
 from app.services.query import parse
 from app.services.result_copy import RANKING_EXPLANATION, RETRYING_NOTE
 from app.services.results import (
@@ -160,28 +163,42 @@ def create_search(
             message=message,
         )
 
+    fast = settings.feature_stop_rule and parsed.mode == SearchMode.FAST
     job = jobs.create(
         **common,
         status=SearchStatus.CREATED,
         planned_targets=len(selection.targets),
         deadline_at=now + timedelta(seconds=settings.search_deadline_seconds),
+        mode=parsed.mode,
+        stop_rule={"k": settings.stop_rule_k} if fast else None,
     )
     provider = "simulated" if parsed.demo_mode else "bolna"
     attempts = AttemptRepo(session)
-    for target in selection.targets:
+    # Without Wave 2 (or in THOROUGH mode) calls go in the order planned; with it, the shops most
+    # likely to give a useful answer are called first so a search can stop early.
+    plan = (
+        plan_order(session, selection.targets, parsed, settings, now)
+        if fast
+        else [PlannedCall(t, None, None) for t in selection.targets]
+    )
+    for item in plan:
         attempts.insert(
             search_job_id=job.id,
-            business_id=target.business_id,
+            business_id=item.target.business_id,
             attempt_number=1,
             provider=provider,
             status=CallStatus.PENDING,
+            priority_score=item.priority,
+            prior_snapshot=item.snapshot,
         )
     AuditRepo(session).add(
         "api", "search_created", search_job_id=job.id, detail={"targets": len(selection.targets)}
     )
     session.commit()
     return SearchCreated(
-        search_id=job.id, status=SearchStatus.CREATED, planned_targets=selection.targets
+        search_id=job.id,
+        status=SearchStatus.CREATED,
+        planned_targets=[p.target for p in plan] if fast else selection.targets,
     )
 
 
@@ -219,6 +236,19 @@ def _load(session: Session, job: SearchJob):
 def _state_for(attempt: CallAttempt, response: BusinessResponse | None) -> ResultState:
     availability = Availability(response.availability) if response else None
     return derive_result_state(CallStatus(attempt.status), availability, attempt.failure_reason)
+
+
+def _history_for(
+    session: Session, settings: Settings, business: Business, response: BusinessResponse
+) -> HistoryView | None:
+    """A labelled past-record line. It never appears without a live answer on the card, never for
+    simulated answers, and never before there are enough answered calls to mean something."""
+    if not settings.feature_history or response.data_origin == "SIMULATED":
+        return None
+    stats = StatsRepo(session).get(business.id)
+    if stats is None or stats.answered < settings.history_min_answered:
+        return None
+    return HistoryView(answered=stats.answered, reported_available=stats.reported_available)
 
 
 def _counts(attempts: list[CallAttempt]) -> Counts:
@@ -263,6 +293,9 @@ def get_search(search_id: str, session: Session = Depends(get_session)) -> Searc
         search_id=job.id,
         status=SearchStatus(job.status),
         demo_mode=job.demo_mode,
+        mode=SearchMode(job.mode),
+        stopped_early=job.stopped_early,
+        calls_avoided=job.calls_avoided,
         created_at=job.created_at,
         started_at=job.started_at,
         completed_at=job.completed_at,
@@ -296,7 +329,9 @@ def get_results(
         ref = _business_ref(job, business)
         response = responses.get(attempt.id)
         if response is not None:
-            items.append(view_from_response(response, ref, now, ttl))
+            view = view_from_response(response, ref, now, ttl)
+            view.history = _history_for(session, settings, business, response)
+            items.append(view)
         else:
             origin = (
                 DataOrigin.SIMULATED if attempt.provider == "simulated" else DataOrigin.LIVE_CALL
