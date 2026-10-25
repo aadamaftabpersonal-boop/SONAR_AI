@@ -1,0 +1,44 @@
+# Pharmacy guardrail (Bible 8.2, FR-04): queries containing any of these are refused.
+# One term or phrase per line, matched case-insensitively on word boundaries.
+# This is a conservative starter list, NOT a complete or clinical one. A pharmacist or
+# clinician must review it before any real pharmacy pilot. It is a guardrail, not a guarantee.
+
+# advice, dosing, interactions
+dosage
+dose
+doses
+overdose
+how much should i take
+which should i take
+which one should i take
+can i take
+safe to take
+is it safe
+interaction
+interactions
+side effect
+side effects
+prescribe
+prescription
+without prescription
+substitute for
+alternative to
+instead of
+
+# controlled or prescription-only examples (starter set)
+tramadol
+codeine
+morphine
+oxycodone
+fentanyl
+methadone
+ketamine
+diazepam
+alprazolam
+clonazepam
+lorazepam
+zolpidem
+insulin
+amoxicillin
+azithromycin
+ciprofloxacin

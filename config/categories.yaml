@@ -1,0 +1,13 @@
+# Category configuration is data, not code (Bible 23.4).
+categories:
+  pharmacy:
+    display_name: Pharmacy (non-prescription items only)
+    essential_attributes: [strength]
+    blocked_terms_file: config/blocked_pharmacy_terms.txt
+    required_fields_default: [availability, price]
+    price_max_plausible_inr: 20000
+  computer_repair:
+    display_name: Computer and phone repair
+    essential_attributes: [device_model, problem]
+    required_fields_default: [availability_today, price]
+    price_max_plausible_inr: 200000
