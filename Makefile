@@ -38,4 +38,8 @@ secrets:
 claims:
 	$(PY) scripts/check_claims.py
 
+check-bundle:
+	npm --prefix frontend run build
+	$(PY) scripts/check_bundle.py
+
 check: lint test secrets claims

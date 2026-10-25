@@ -38,9 +38,13 @@ switch ($Task) {
     }
     "secrets" { Run $Py @("scripts/check_no_secrets.py") }
     "claims" { Run $Py @("scripts/check_claims.py") }
+    "check-bundle" {
+        Run "npm" @("--prefix", "frontend", "run", "build")
+        Run $Py @("scripts/check_bundle.py")
+    }
     "check" {
         & $PSCommandPath lint; & $PSCommandPath test; & $PSCommandPath secrets
         & $PSCommandPath claims
     }
-    default { Write-Host "tasks: setup doctor db-up db-down run test test-int lint fmt secrets claims check" }
+    default { Write-Host "tasks: setup doctor db-up db-down run test test-int lint fmt secrets claims check-bundle check" }
 }
