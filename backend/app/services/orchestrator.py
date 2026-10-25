@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import uuid
 from collections.abc import Callable
 from datetime import datetime, timedelta
@@ -39,6 +40,7 @@ from app.services.finalizer import (
 )
 from app.services.jobs import enforce_deadlines, refresh_job
 from app.services.query import build_user_data
+from app.services.retention import purge_old
 
 log = logging.getLogger("sonar.orchestrator")
 
@@ -248,11 +250,29 @@ class Orchestrator:
 
     # --- long-running loop ------------------------------------------------------------------
 
+    def maintenance(self) -> dict[str, int]:
+        """Hourly housekeeping: delete raw provider events and clear old call excerpts."""
+        with self.sf() as s:
+            counts = purge_old(
+                s,
+                self.clock(),
+                event_days=self.settings.retention_event_days,
+                response_days=self.settings.retention_response_days,
+            )
+            s.commit()
+        if any(counts.values()):
+            log.info("retention purge: %s", counts)
+        return counts
+
     async def run_forever(self) -> None:
         self.recover_on_start()
+        last_maintenance = 0.0
         while True:
             try:
                 await self.tick()
+                if time.monotonic() - last_maintenance > 3600:
+                    last_maintenance = time.monotonic()
+                    self.maintenance()
             except Exception:
                 log.exception("orchestrator tick failed")
             await asyncio.sleep(self.settings.orchestrator_poll_seconds)

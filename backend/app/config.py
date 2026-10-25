@@ -39,6 +39,14 @@ class Settings(BaseSettings):
     business_daily_call_cap: int = 4
     global_daily_call_budget: int = 40
 
+    # Directory of the built frontend (frontend/dist). When set, the API also serves the web app,
+    # so one process hosts everything. Empty in development, where Vite serves the frontend.
+    frontend_dist: str = ""
+
+    # Retention (Bible 36): raw provider events and call excerpts are not kept forever
+    retention_event_days: int = 30
+    retention_response_days: int = 90
+
     # Orchestrator and webhook (Bible 27, 20.6)
     orchestrator_enabled: bool = True
     orchestrator_poll_seconds: float = 1.0

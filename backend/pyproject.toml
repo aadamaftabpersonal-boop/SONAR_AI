@@ -51,6 +51,7 @@ extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Header"]
 [tool.ruff.lint.per-file-ignores]
 "alembic/versions/*" = ["E501"]  # generated migrations
 "tests/*" = ["E501"]  # long assertion lines read better unwrapped
+"app/api/shop.py" = ["E501"]  # contains an inline HTML page
 
 [tool.ruff.lint.isort]
 # backend/alembic/ (our migrations folder) must not be mistaken for the alembic library

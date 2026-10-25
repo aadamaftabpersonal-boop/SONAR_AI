@@ -59,6 +59,7 @@ class Business(Base):
         CheckConstraint(r"phone_e164 ~ '^\+[1-9][0-9]{7,14}$'", name="ck_businesses_phone"),
         CheckConstraint("latitude BETWEEN -90 AND 90", name="ck_businesses_lat"),
         CheckConstraint("longitude BETWEEN -180 AND 180", name="ck_businesses_lng"),
+        UniqueConstraint("digest_token", name="uq_businesses_digest_token"),
         CheckConstraint(in_values("kind", enums.BusinessKind), name="ck_businesses_kind"),
         CheckConstraint(
             in_values("participation_status", enums.ParticipationStatus),
@@ -85,6 +86,11 @@ class Business(Base):
     consent_note: Mapped[str | None] = mapped_column(Text)
     opted_out_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     best_call_window: Mapped[str | None] = mapped_column(Text)
+    # Wave 2 (Bible 49): the shop agreed to the weekly demand digest; the token is its private link
+    digest_opt_in: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+    digest_token: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _now()
     updated_at: Mapped[datetime] = _now()
 
@@ -287,6 +293,32 @@ class BusinessResponse(Base):
     availability_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     price_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _now()
+
+
+class GroundTruthCheck(Base):
+    """Independent verification of a live answer (Bible 54.1): did reality match what was said?"""
+
+    __tablename__ = "ground_truth_checks"
+    __table_args__ = (
+        CheckConstraint(
+            in_values("method", ["IN_PERSON", "SECOND_CALL", "OTHER"]),
+            name="ck_ground_truth_method",
+        ),
+        CheckConstraint(
+            in_values("outcome", enums.GroundTruthOutcome), name="ck_ground_truth_outcome"
+        ),
+        UniqueConstraint("response_id", "checker", name="uq_ground_truth_checker"),
+    )
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    response_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("business_responses.id", ondelete="CASCADE"), nullable=False
+    )
+    checked_at: Mapped[datetime] = _now()
+    checker: Mapped[str] = mapped_column(Text, nullable=False)
+    method: Mapped[str] = mapped_column(Text, nullable=False)
+    outcome: Mapped[str] = mapped_column(Text, nullable=False)
+    note: Mapped[str | None] = mapped_column(Text)
 
 
 class AuditEvent(Base):
