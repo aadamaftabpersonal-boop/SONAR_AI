@@ -13,8 +13,14 @@ def test_flags_planted_api_key():
 
 
 def test_flags_real_looking_phone_number():
-    planted = "call " + "+91" + "9876543210" + " now"  # built so this file isn't itself flagged
+    planted = "call " + "+91" + "9123456780" + " now"  # built so this file isn't itself flagged
     assert checker.scan_text(planted, "notes.md")
+
+
+def test_the_well_known_dummy_number_is_allowed_but_other_numbers_are_not():
+    dummy = "+91" + "9876543210"
+    assert checker.scan_text(f"use {dummy} in tests", "t.py") == []
+    assert checker.scan_text("use " + "+91" + "9123456780", "t.py")  # a plausible real number
 
 
 def test_ignores_placeholders():

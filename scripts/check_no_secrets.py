@@ -39,10 +39,18 @@ def is_exempt(path: Path) -> bool:
     return ".example." in name or name.endswith(".example") or path.resolve() == SELF
 
 
+# Obviously fake numbers that tests use as stand-ins (a descending run of digits). Allowlisting
+# exact values keeps the rule strict for everything else.
+KNOWN_FAKE_MOBILES = {"9876543210"}
+
+
 def scan_text(text: str, filename: str = "<text>") -> list[str]:
     findings = []
     for label, pattern in PATTERNS:
         for match in pattern.finditer(text):
+            if label == "indian mobile number":
+                if re.sub(r"\D", "", match.group(0))[-10:] in KNOWN_FAKE_MOBILES:
+                    continue
             line = text.count("\n", 0, match.start()) + 1
             findings.append(f"{filename}:{line}: {label}")
     return findings
