@@ -1,30 +1,83 @@
+<div align="center">
+
 # Sonar
 
-**Search the real world by calling it.**
+### Search the real world by calling it.
 
-Sonar is a voice-agent search engine for facts that exist only in the heads of people at real
-businesses: *do you have this in stock right now? can you take this job today?* It phones a small
-set of businesses that have agreed to be called, asks one short factual question, validates what each
-one said, and shows the answers with their evidence and timestamps.
+A voice-agent search engine for facts that live only in the heads of people at real businesses.
+It phones shops that agreed to be called, asks one factual question, checks the answer against the
+call transcript, and shows what each shop said, with the evidence and the time.
 
-Sonar **reports; it does not guarantee.** An answer is what a business said on a call. A shop that did
-not pick up, failed, hedged, declined or was skipped is never shown as "unavailable".
+![Status](https://img.shields.io/badge/status-prototype-orange)
+![Python](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white)
+![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-16-4169E1?logo=postgresql&logoColor=white)
+![Voice](https://img.shields.io/badge/voice-Bolna-5B3DF5)
 
-Built for the Bolna Buildathon (Symphony 2026).
+[The problem](#the-problem) ·
+[Status](#status) ·
+[A real call](#a-real-test-call) ·
+[Principles](#principles) ·
+[How it works](#how-it-works) ·
+[Quick start](#quick-start) ·
+[Roadmap](docs/IMPROVEMENTS.md)
+
+</div>
 
 ---
 
+Sonar **reports; it does not guarantee.** An answer is what a business said on a call. A shop that
+did not pick up, failed, hedged, declined or was skipped is never shown as "unavailable".
+
+Built for the Bolna Buildathon (Symphony 2026).
+
+## The problem
+
+Maps and search engines list a shop's address and opening hours, but not its stock. Many small
+businesses, such as pharmacies, repair shops and hardware stores, have no online inventory at all.
+To learn whether a nearby shop has an item right now, you have to phone it, or go and find out. When
+the item is a medicine, a wasted trip matters.
+
+Sonar does the phoning: a few nearby shops that agreed to be called are asked one short question by an
+automated assistant that says it is an AI, and you see what each one answered.
+
 ## Status
 
-| | |
+| Area | State |
 |---|---|
-| Core pipeline (search, consent-gated calling, validation, results) | Working, tested on a simulator and on a mocked Bolna API |
+| Core pipeline (search, consent-gated calling, validation, results) | Working. Tested on a simulator, a mocked Bolna API and a real database |
 | Web application | Working, with live progress, evidence, map and radar views |
-| Real calls through Bolna | **Not yet exercised.** Waiting on the API key. Field names come from Bolna's documentation, not from captured responses |
-| Answer accuracy, pickup rate, cost per call | **Not yet measured** |
+| Real calls through Bolna | **Exercised in a handful of test calls** to team phones (2026-10-25). Response fields and extraction shape captured and the parser fixed. The webhook path has not been run live |
+| Answer accuracy, pickup rate, cost per call | **Not yet measured** (four test calls are not a sample) |
+| Real shops, consent flow with real businesses, legal review | **Not started** |
 
 Nothing in this repository claims a result that has not been measured. See
-[`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) for exactly what is and is not proven.
+[`docs/LIMITATIONS.md`](docs/LIMITATIONS.md) for exactly what is and is not proven, and
+[`docs/FEASIBILITY.md`](docs/FEASIBILITY.md) for what the first live calls showed.
+
+## A real test call
+
+One of the first live calls, to a team phone playing a shopkeeper. The agent opens with the AI
+disclosure, then asks.
+
+```text
+assistant: Hello, this is an automated assistant calling for Sonar. I'm checking a quick fact for a
+           customer. Is now an okay moment for one or two questions? This call is transcribed to
+           record your answer.
+user:      yes
+assistant: Do you currently have Paracetamol strength 500 mg available?
+user:      yes
+assistant: Just to be sure, is that exactly Paracetamol strength 500 mg?
+user:      yes
+assistant: Could you tell me the price for that one?
+user:      twenty rupees
+```
+
+What Sonar stored from it: availability *available*, exact match *yes*, price *20*, supporting
+quote taken from the shop's own words. A different call, in which the speech-to-text mangled a unit,
+was recorded as *not an exact match* rather than guessed, which is the behaviour we want: when in
+doubt, Sonar says less.
 
 ## Principles
 
@@ -225,7 +278,8 @@ default secrets. See [`docs/OPERATIONS.md`](docs/OPERATIONS.md).
 | [`docs/DEMO_SCRIPT.md`](docs/DEMO_SCRIPT.md) | The three-minute demo and what never to say |
 | [`docs/BUSINESS_CASE.md`](docs/BUSINESS_CASE.md) | Hypotheses with pre-set pass and kill rules |
 | [`docs/CONSENT_SCRIPT.md`](docs/CONSENT_SCRIPT.md) | How to ask a business for permission |
-| [`docs/FEASIBILITY.md`](docs/FEASIBILITY.md) | The Bolna spike record |
+| [`docs/FEASIBILITY.md`](docs/FEASIBILITY.md) | The Bolna spike record and first live-call findings |
+| [`docs/IMPROVEMENTS.md`](docs/IMPROVEMENTS.md) | Scaling and improvement plan: agent, languages, map, UI, reliability, legal |
 | [`docs/METRICS.md`](docs/METRICS.md) | Measured results |
 | [`docs/SUBMISSION.md`](docs/SUBMISSION.md) | Submission checklist |
 | [`SONAR_BIBLE_v2.md`](SONAR_BIBLE_v2.md), [`SONAR_BUILD_MAP_v2.md`](SONAR_BUILD_MAP_v2.md) | Specification, decision log and execution plan |
