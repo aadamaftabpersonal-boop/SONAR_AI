@@ -165,18 +165,29 @@ class SimulatedVoiceProvider:
     name = "simulated"
 
     def __init__(
-        self, scenarios_by_phone: dict[str, str] | None = None, default: str = "available"
+        self,
+        scenarios_by_phone: dict[str, str] | None = None,
+        default: str = "available",
+        cycle: tuple[str, ...] | None = None,
     ):
         if default not in SCENARIOS:
             raise ValueError(f"unknown scenario: {default}")
+        if cycle and not set(cycle) <= set(SCENARIOS):
+            raise ValueError("cycle contains an unknown scenario")
         self._by_phone = scenarios_by_phone or {}
         self._default = default
+        self._cycle = cycle
         self._records: dict[str, ProviderCallRecord] = {}
         self._scenario_of: dict[str, str] = {}
         self.calls_started = 0
 
     def scenario_for(self, to_e164: str) -> str:
-        return self._by_phone.get(to_e164, self._default)
+        if to_e164 in self._by_phone:
+            return self._by_phone[to_e164]
+        if self._cycle:  # deterministic variety for demos: same number, same scenario
+            digest = hashlib.sha256(to_e164.encode()).digest()
+            return self._cycle[digest[0] % len(self._cycle)]
+        return self._default
 
     async def start_call(self, req: CallRequest) -> ProviderCallRef:
         scenario = self.scenario_for(req.to_e164)

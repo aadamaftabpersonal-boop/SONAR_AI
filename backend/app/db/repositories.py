@@ -135,6 +135,75 @@ class AttemptRepo:
         self.s.flush()
         return True
 
+    def mark_dispatch_unknown(self, attempt_id: uuid.UUID, reason: str) -> None:
+        """The call may or may not have started. Never auto-retried (a duplicate call to a
+        shopkeeper is worse than a missed one, Bible 27.2.1). Same rank as DISPATCHING, so it
+        bypasses the forward-only rule on purpose."""
+        self.s.execute(
+            update(CallAttempt)
+            .where(CallAttempt.id == attempt_id, CallAttempt.status == CallStatus.DISPATCHING)
+            .values(status=CallStatus.DISPATCH_UNKNOWN, failure_reason=reason, updated_at=utcnow())
+        )
+
+    def dispatch_unknown_on_start(self) -> int:
+        """After a restart, DISPATCHING attempts with no call id become DISPATCH_UNKNOWN."""
+        result = self.s.execute(
+            update(CallAttempt)
+            .where(
+                CallAttempt.status == CallStatus.DISPATCHING, CallAttempt.provider_call_id.is_(None)
+            )
+            .values(
+                status=CallStatus.DISPATCH_UNKNOWN,
+                failure_reason="RESTART_DURING_DISPATCH",
+                updated_at=utcnow(),
+            )
+        )
+        return result.rowcount
+
+    def stale_in_flight(self, older_than: datetime) -> list[CallAttempt]:
+        """Non-terminal attempts that have a provider call id and have gone quiet."""
+        live = [
+            CallStatus.DIALING,
+            CallStatus.RINGING,
+            CallStatus.IN_PROGRESS,
+            CallStatus.PROCESSING,
+        ]
+        return list(
+            self.s.execute(
+                select(CallAttempt).where(
+                    CallAttempt.status.in_(live),
+                    CallAttempt.provider_call_id.is_not(None),
+                    CallAttempt.updated_at < older_than,
+                )
+            ).scalars()
+        )
+
+    def dispatched_since(self, since: datetime, provider: str) -> int:
+        """Calls that actually left the building today, for the global budget (NFR-06)."""
+        return self.s.execute(
+            select(func.count())
+            .select_from(CallAttempt)
+            .where(
+                CallAttempt.provider == provider,
+                CallAttempt.started_at >= since,
+                (CallAttempt.provider_call_id.is_not(None))
+                | (CallAttempt.status == CallStatus.DISPATCH_UNKNOWN),
+            )
+        ).scalar_one()
+
+    def cancel_pending_for_business(self, business_id: uuid.UUID, reason: str) -> int:
+        result = self.s.execute(
+            update(CallAttempt)
+            .where(CallAttempt.business_id == business_id, CallAttempt.status == CallStatus.PENDING)
+            .values(
+                status=CallStatus.CANCELLED,
+                failure_reason=reason,
+                completed_at=utcnow(),
+                updated_at=utcnow(),
+            )
+        )
+        return result.rowcount
+
     def attach_execution_id(self, attempt_id: uuid.UUID, provider_call_id: str) -> None:
         self.s.execute(
             update(CallAttempt)

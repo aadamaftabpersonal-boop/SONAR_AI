@@ -37,6 +37,15 @@ class Settings(BaseSettings):
     business_daily_call_cap: int = 4
     global_daily_call_budget: int = 40
 
+    # Orchestrator and webhook (Bible 27, 20.6)
+    orchestrator_enabled: bool = True
+    orchestrator_poll_seconds: float = 1.0
+    retry_backoff_seconds: int = 120
+    dispatch_stale_seconds: int = 60
+    sim_step_seconds: float = 0.6  # pacing of simulated calls so the UI shows progress
+    webhook_allowed_ips: str = ""  # comma-separated; empty disables the IP check
+    webhook_max_body_bytes: int = 256 * 1024
+
     # Bible 28 per-field freshness (ASSUMPTION A-13, tune in rehearsal)
     freshness_ttl_availability_minutes: int = 60
     freshness_ttl_quantity_minutes: int = 30

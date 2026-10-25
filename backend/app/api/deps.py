@@ -9,10 +9,22 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 
 from fastapi import Depends, Header, Request
+from sqlalchemy.orm import Session, sessionmaker
 
 from app.api.errors import ApiError
 from app.config import Settings, get_settings
+from app.db.session import get_engine, make_session_factory
 from app.domain.enums import ErrorClass
+from app.providers.registry import ProviderRegistry
+
+
+def get_session_factory() -> sessionmaker[Session]:
+    """Used by background work that outlives a request. Tests override it."""
+    return make_session_factory(get_engine())
+
+
+def get_providers(request: Request) -> ProviderRegistry:
+    return request.app.state.providers
 
 
 def get_clock() -> Callable[[], datetime]:

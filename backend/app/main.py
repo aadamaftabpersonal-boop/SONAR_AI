@@ -1,20 +1,69 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import logging
 import uuid
+from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api import misc, searches
+from app.api import misc, searches, webhooks
 from app.api.deps import SlidingWindowLimiter
 from app.api.errors import install_error_handlers
 from app.config import get_settings
+from app.db.session import get_engine, make_session_factory
+from app.providers.registry import ProviderRegistry
+from app.providers.simulated import SimulatedVoiceProvider
+from app.services.orchestrator import Orchestrator
+
+log = logging.getLogger("sonar")
+
+# Demo mode shows a mix of outcomes so judges see honest handling of every case.
+DEMO_CYCLE = (
+    "available",
+    "unavailable",
+    "no_answer",
+    "ambiguous",
+    "available_no_price",
+    "alternative_only",
+)
+
+
+def default_providers() -> ProviderRegistry:
+    # The Bolna provider is registered here once spike S-4/S-6 fixtures exist (T5.3).
+    return ProviderRegistry({"simulated": SimulatedVoiceProvider(cycle=DEMO_CYCLE)})
 
 
 def create_app() -> FastAPI:
     settings = get_settings()
-    app = FastAPI(title="Sonar", version="0.1.0")
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI):
+        task = None
+        if settings.orchestrator_enabled:
+            orchestrator = Orchestrator(
+                make_session_factory(get_engine()),
+                app.state.providers,
+                settings,
+                lambda: datetime.now(UTC),
+            )
+            app.state.orchestrator = orchestrator
+            task = asyncio.create_task(orchestrator.run_forever())
+            log.info("orchestrator started")
+        try:
+            yield
+        finally:
+            if task:
+                task.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await task
+
+    app = FastAPI(title="Sonar", version="0.1.0", lifespan=lifespan)
     app.state.search_limiter = SlidingWindowLimiter(settings.rate_limit_search_per_minute)
+    app.state.providers = default_providers()
 
     origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
     app.add_middleware(
@@ -34,6 +83,7 @@ def create_app() -> FastAPI:
     install_error_handlers(app)
     app.include_router(misc.router)
     app.include_router(searches.router)
+    app.include_router(webhooks.router)
     return app
 
 
