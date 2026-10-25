@@ -109,13 +109,14 @@ def _unwrap(value: Any) -> tuple[Any, float | None]:
     """An answer may be a plain value or {objective|subjective|value: ..., confidence: ...}."""
     if isinstance(value, dict):
         confidence = value.get("confidence")
+        confidence = float(confidence) if isinstance(confidence, int | float) else None
+        # Bolna sends both keys and leaves the unused one null: pre-defined answers are in
+        # `objective`, free text and numbers in `subjective` (captured 2026-10-25, S-7)
         for key in _VALUE_KEYS:
-            if key in value:
-                inner = value[key]
-                return (None if inner == "" else inner), (
-                    float(confidence) if isinstance(confidence, int | float) else None
-                )
-        return None, None
+            inner = value.get(key)
+            if inner is not None and inner != "":
+                return inner, confidence
+        return None, confidence if any(k in value for k in _VALUE_KEYS) else None
     return (None if value == "" else value), None
 
 

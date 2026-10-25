@@ -406,6 +406,29 @@ def test_blank_answers_become_none_so_unknown_stays_unknown():
     assert out["price_amount"] is None and out["alternative_offered"] is None
 
 
+def test_the_real_shape_with_both_keys_present_and_one_null():
+    """Captured 2026-10-25 (S-7): every answer has `objective` and `subjective`; one is null."""
+    real = {
+        "sonar": {
+            "availability": {"objective": "available", "subjective": None, "confidence": 1.0},
+            "price_amount": {
+                "objective": None,
+                "subjective": "20",
+                "confidence": 1.0,
+                "validation": {"is_valid": True, "expected_type": "numeric"},
+            },
+            "quantity_available": {"objective": None, "subjective": "1", "confidence": 1.0},
+            "alternative_offered": {"objective": None, "subjective": "", "confidence": 1.0},
+            "open_now": {"objective": "unsure", "subjective": None, "confidence": 0.1},
+        }
+    }
+    out = normalize_extracted(real)
+    assert out["availability"] == "available" and out["open_now"] == "unsure"
+    assert out["price_amount"] == "20" and out["quantity_available"] == "1"
+    assert out["alternative_offered"] is None  # nothing was said: unknown, not empty text
+    assert out["confidence"] == 0.1
+
+
 @pytest.mark.parametrize(
     "junk", [None, {}, [], "text", {"unrelated": 1}, {"group": {"nothing": 1}}]
 )

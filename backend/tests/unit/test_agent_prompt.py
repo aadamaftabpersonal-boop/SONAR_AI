@@ -69,8 +69,18 @@ def test_forbids_advice_commitments_and_stating_facts_itself():
 
 def test_uses_exactly_the_user_data_keys_the_backend_sends():
     sent = set(build_user_data_keys())
-    used = set(re.findall(r"\{(\w+)\}", PROMPT))
+    used = set(re.findall(r"\{\{(\w+)\}\}", PROMPT))  # Bolna's variable syntax is {{name}}
     assert used == sent
+    # no single-brace placeholders left behind: they would be spoken aloud literally
+    assert not re.findall(r"(?<!\{)\{\w+\}(?!\})", PROMPT)
+
+
+def test_the_welcome_message_carries_the_disclosure_and_matches_the_prompt():
+    block = re.search(r"## 1a\. Welcome message.*?```\n(.*?)```", TEXT, re.DOTALL)
+    assert block, "welcome message block not found"
+    welcome = " ".join(block.group(1).lower().split())
+    assert "automated assistant" in welcome and "transcribed" in welcome
+    assert welcome in FLAT  # the prompt quotes the same words, so the two cannot drift apart
 
 
 def build_user_data_keys() -> list[str]:

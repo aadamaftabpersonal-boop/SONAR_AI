@@ -149,9 +149,28 @@ def parse(
     )
 
 
+_SPOKEN_UNITS = {
+    "mg": "milligrams",
+    "mcg": "micrograms",
+    "ml": "millilitres",
+    "kg": "kilograms",
+    "g": "grams",
+}
+_UNIT = re.compile(r"(?<=\d)\s*(mcg|mg|ml|kg|g)\b", re.IGNORECASE)
+
+
+def spoken(text: str) -> str:
+    """Units written out in full: the voice says them and the shop answers in the same words.
+    A live call heard '500 mg' and the shopkeeper's 'milligrams' was transcribed 'millie gills',
+    which read as a different product (2026-10-25)."""
+    return _UNIT.sub(lambda m: f" {_SPOKEN_UNITS[m.group(1).lower()]}", text)
+
+
 def build_user_data(parsed: ParsedQuery) -> dict[str, str]:
     """The only data that flows to the voice agent (Bible 30). Whitelisted keys, safe values."""
-    attributes_text = ", ".join(f"{k.replace('_', ' ')} {v}" for k, v in parsed.attributes.items())
+    attributes_text = spoken(
+        ", ".join(f"{k.replace('_', ' ')} {v}" for k, v in parsed.attributes.items())
+    )
     return {
         "category": parsed.category,
         "item": parsed.item_name,

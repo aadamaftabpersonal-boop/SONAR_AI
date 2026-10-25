@@ -8,7 +8,7 @@ from app.domain.schemas import (
     SearchRequest,
 )
 from app.services.categories import CategoryError, get_categories, load_categories
-from app.services.query import build_user_data, parse
+from app.services.query import build_user_data, parse, spoken
 
 CATS = get_categories()
 
@@ -201,9 +201,16 @@ def test_user_data_values_are_plain_strings():
     assert data == {
         "category": "pharmacy",
         "item": "Paracetamol",
-        "attributes_text": "strength 500 mg",
+        "attributes_text": "strength 500 milligrams",
         "required_fields_text": "availability, price",
     }
+
+
+def test_units_are_spoken_in_full_but_other_text_is_untouched():
+    assert spoken("strength 500 mg") == "strength 500 milligrams"
+    assert spoken("5ml, 2 kg, 250 MCG") == "5 millilitres, 2 kilograms, 250 micrograms"
+    assert spoken("brand mgx 5 grams") == "brand mgx 5 grams"  # no digit-unit pair, no change
+    assert spoken("room 5g") == "room 5 grams"
 
 
 def test_hindi_product_name_is_accepted():

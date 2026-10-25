@@ -21,6 +21,11 @@ fixtures (`scripts/redact_fixture.py`).
 **B-02 status:**
 
 ## S-2 Agent and prompt variables (resolves A-09)
+*Observed in the Agent Studio UI (screenshot, 2026-10-25), not yet in a call:* variables are written
+`{{variable_name}}`; the studio showed a displayed cost of $0.060 per minute for the default
+"Cascaded" voice engine, and a trial-plan banner saying outbound calls are limited to verified
+phone numbers. The $0.060 is the studio's displayed estimate, **not** a measured call cost.
+
 | Item | Observed | Evidence |
 |---|---|---|
 | Placeholder syntax that works in the prompt | | |
