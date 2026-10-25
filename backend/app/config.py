@@ -1,0 +1,63 @@
+"""Typed settings. Names are our convention (Bible D-020); defaults follow Bible 27.1 and 56."""
+
+from functools import lru_cache
+from pathlib import Path
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+ROOT = Path(__file__).resolve().parents[2]
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(
+        env_file=ROOT / ".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
+    sonar_env: str = "dev"
+    database_url: str = "postgresql+psycopg://sonar:sonar@localhost:55432/sonar"
+    sonar_access_key: str = ""
+    webhook_secret_token: str = ""
+    bolna_api_key: str = ""
+    bolna_api_base_url: str = "https://api.bolna.ai"
+    bolna_from_phone_number: str = ""
+    business_seed_path: str = "data/businesses.local.yaml"
+    allowed_origins: str = "http://localhost:5173"
+    log_level: str = "INFO"
+    rate_limit_search_per_minute: int = 10
+
+    # Bible 27.1 bounds
+    max_targets_per_search: int = 5
+    max_concurrent_calls: int = 2
+    call_max_seconds: int = 120
+    hangup_after_silence_seconds: int = 10
+    max_attempts_per_business: int = 2
+    search_deadline_seconds: int = 300
+    reconcile_after_seconds: int = 90
+    business_cooldown_minutes: int = 15
+    business_daily_call_cap: int = 4
+    global_daily_call_budget: int = 40
+
+    # Bible 56 (Wave 2); every feature is off until enabled (NFR-15)
+    stop_rule_k: int = 2
+    prior_min_observations: int = 5
+    prior_exploration_epsilon: float = 0.15
+    history_min_answered: int = 5
+    digest_min_k: int = 3
+    shop_update_max_per_day: int = 6
+    shop_update_ttl_hours: int = 12
+    live_ticker_lines: int = 6
+    watch_min_interval_minutes: int = 120
+    feature_stop_rule: bool = False
+    feature_history: bool = False
+    feature_digest: bool = False
+    feature_shop_line: bool = False
+    feature_live_ticker: bool = False
+    feature_audio_replay: bool = False
+    feature_voice_ui: bool = False
+    feature_compiler: bool = False
+    feature_watches: bool = False
+
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()

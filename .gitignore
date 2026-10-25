@@ -1,0 +1,25 @@
+# secrets and local data (WP-6, B-01: real numbers never enter git)
+.env
+.env.*
+!.env.example
+data/businesses.local.yaml
+*.pem
+spikes/**/captures/
+
+# python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# node (Phase 8)
+node_modules/
+frontend/dist/
+
+# os / editor
+.DS_Store
+Thumbs.db
+.claude/settings.local.json
