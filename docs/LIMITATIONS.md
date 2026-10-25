@@ -36,6 +36,18 @@ file. Last updated with the build state described in `README.md`.
 - **Shop history is small.** With few calls per shop, ordering by history is close to ordering by
   distance. It needs real volume to mean anything.
 
+## The map
+
+- **Tiles come from OpenStreetMap's public servers**, which allow light use with visible
+  attribution, offer no uptime guarantee, and can block heavy use without notice. That is fine for a
+  demo. For real traffic, switch provider by setting `VITE_TILE_URL` (see `frontend/src/tiles.ts`).
+- **Using the map tells the tile server roughly what area the viewer is looking at**, and their IP
+  address, as any web map does. The Radar tab sends nothing to any map service.
+- **There is no address search.** You choose a place by clicking the map, using your location, or the
+  demo locality. Address search would need a geocoding service with its own usage rules.
+- **Shop positions are straight-line distance and compass direction** from the search point, not
+  driving routes.
+
 ## Safety limits
 
 - **Medical content is blocked conservatively, not completely.** The blocked-terms list is a

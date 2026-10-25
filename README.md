@@ -43,8 +43,9 @@ flowchart LR
    confirmation, and a spoken price. Otherwise the answer is shown as Uncertain.
 6. **Stop early.** Once two different shops have confirmed, remaining calls are skipped and shown
    as "Not called". "Ask every shop" turns that off.
-7. **Show.** Ranked answers, an evidence panel, a radar view, a "what Sonar chose not to claim"
-   list, and an optional read-aloud.
+7. **Show.** Ranked answers, an evidence panel, a map (OpenStreetMap) or an offline radar, a "what
+   Sonar chose not to claim" list, and an optional read-aloud. You can choose where to search by
+   clicking the map.
 
 ## Run it locally (Windows)
 
