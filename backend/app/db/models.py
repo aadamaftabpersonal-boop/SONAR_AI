@@ -95,6 +95,7 @@ class SearchJob(Base):
         CheckConstraint("char_length(query_text) <= 500", name="ck_search_jobs_query_len"),
         CheckConstraint("radius_km > 0 AND radius_km <= 25", name="ck_search_jobs_radius"),
         CheckConstraint(in_values("status", enums.SearchStatus), name="ck_search_jobs_status"),
+        CheckConstraint(in_values("mode", enums.SearchMode), name="ck_search_jobs_mode"),
     )
 
     id: Mapped[uuid.UUID] = _uuid_pk()
@@ -115,6 +116,13 @@ class SearchJob(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     deadline_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    # Wave 2 (Bible 48): FAST stops early once enough shops confirm; THOROUGH calls everyone
+    mode: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'FAST'"))
+    stop_rule: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    stopped_early: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+    calls_avoided: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
 
 
 class CallAttempt(Base):
@@ -152,7 +160,41 @@ class CallAttempt(Base):
     retry_eligible: Mapped[bool] = mapped_column(
         Boolean, nullable=False, server_default=text("false")
     )
+    # Wave 2: dispatch priority from the shop's history, and the inputs used (audit)
+    priority_score: Mapped[Decimal | None] = mapped_column(Numeric(5, 4))
+    prior_snapshot: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = _now()
+    updated_at: Mapped[datetime] = _now()
+
+
+class BusinessStats(Base):
+    """Per-shop call history (Bible 48.5). It only ever orders calls and feeds a labelled
+    'history' line; it never creates or changes an answer (D-033)."""
+
+    __tablename__ = "business_stats"
+
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("businesses.id", ondelete="CASCADE"), primary_key=True
+    )
+    attempts: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    connected: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    completed: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    no_answer: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    reported_available: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    reported_unavailable: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    uncertain: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    declined: Mapped[int] = mapped_column(Integer, nullable=False, server_default=text("0"))
+    total_duration_seconds: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default=text("0")
+    )
+    hour_bucket_stats: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default=text("'{}'::jsonb")
+    )
+    last_attempt_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     updated_at: Mapped[datetime] = _now()
 
 

@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     shop_update_ttl_hours: int = 12
     live_ticker_lines: int = 6
     watch_min_interval_minutes: int = 120
+    # Keep simulator runs out of the shop history by default so demos never pollute real stats
+    # (D-022 extended). Tests and rehearsals of the learning loop switch it on.
+    stats_include_simulated: bool = False
     feature_stop_rule: bool = False
     feature_history: bool = False
     feature_digest: bool = False

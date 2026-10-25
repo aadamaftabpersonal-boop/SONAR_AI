@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import json
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
@@ -20,12 +21,14 @@ from app.db.models import (
     AuditEvent,
     Business,
     BusinessResponse,
+    BusinessStats,
     CallAttempt,
     ProviderEvent,
     SearchJob,
 )
 from app.domain.enums import CallStatus, ParticipationStatus
 from app.domain.transitions import can_transition, is_terminal
+from app.services.stats import StatsData
 
 
 def utcnow() -> datetime:
@@ -93,7 +96,12 @@ class AttemptRepo:
         attempt = self.s.execute(
             select(CallAttempt)
             .where(CallAttempt.status == CallStatus.PENDING, CallAttempt.not_before <= now)
-            .order_by(CallAttempt.not_before, CallAttempt.created_at)
+            # attempts planned together share not_before; Wave 2 priority decides who goes first
+            .order_by(
+                CallAttempt.not_before,
+                CallAttempt.priority_score.desc().nulls_last(),
+                CallAttempt.created_at,
+            )
             .limit(1)
             .with_for_update(skip_locked=True)
         ).scalar_one_or_none()
@@ -362,6 +370,62 @@ class BusinessRepo:
                 participation_status=ParticipationStatus.OPTED_OUT, opted_out_at=now, updated_at=now
             )
         )
+
+
+class StatsRepo:
+    """Reads and writes a shop's history. Rows are locked while updated, so two jobs finishing
+    calls to the same shop cannot lose each other's counts."""
+
+    def __init__(self, session: Session):
+        self.s = session
+
+    def _row(self, business_id: uuid.UUID, lock: bool) -> BusinessStats | None:
+        stmt = select(BusinessStats).where(BusinessStats.business_id == business_id)
+        return self.s.execute(stmt.with_for_update() if lock else stmt).scalar_one_or_none()
+
+    def get(self, business_id: uuid.UUID) -> StatsData | None:
+        row = self._row(business_id, lock=False)
+        return None if row is None else _to_data(row)
+
+    def update(self, business_id: uuid.UUID, change: Callable[[StatsData], StatsData]) -> None:
+        """Apply `change` to the shop's history. A change that returns its input unchanged (for
+        example a provider failure) is a no-op and creates no row."""
+        row = self._row(business_id, lock=True)
+        if row is None:
+            blank = StatsData()
+            if change(blank) is blank:
+                return
+            self.s.execute(
+                pg_insert(BusinessStats)
+                .values(business_id=business_id)
+                .on_conflict_do_nothing(index_elements=["business_id"])
+            )
+            row = self._row(business_id, lock=True)  # recompute from the locked row, so a
+            assert row is not None  # concurrent first update is never lost
+        new = change(_to_data(row))
+        for name in _STATS_FIELDS:
+            setattr(row, name, getattr(new, name))
+        row.updated_at = utcnow()
+        self.s.flush()
+
+
+_STATS_FIELDS = (
+    "attempts",
+    "connected",
+    "completed",
+    "no_answer",
+    "reported_available",
+    "reported_unavailable",
+    "uncertain",
+    "declined",
+    "total_duration_seconds",
+    "hour_bucket_stats",
+    "last_attempt_at",
+)
+
+
+def _to_data(row: BusinessStats) -> StatsData:
+    return StatsData(**{name: getattr(row, name) for name in _STATS_FIELDS})
 
 
 class AuditRepo:
