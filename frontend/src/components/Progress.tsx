@@ -64,6 +64,16 @@ export function Progress({ search, running, onCancel }: Props) {
           Cancelling stops further calls. A call already in progress will finish and be recorded.
         </p>
       )}
+      {search.stopped_early && (
+        <p
+          role="status"
+          className="mb-3 rounded-xl bg-[var(--info-bg)] px-3 py-2 text-sm text-[var(--info)]"
+        >
+          Stopped early: enough shops had already confirmed, so {search.calls_avoided}{' '}
+          {search.calls_avoided === 1 ? 'call was' : 'calls were'} not made. Skipped shops are listed
+          below, and this does not mean they lack the item.
+        </p>
+      )}
       <ul className="grid gap-2" aria-label="Calls">
         {rows.map((a) => (
           <li
@@ -79,7 +89,9 @@ export function Progress({ search, running, onCancel }: Props) {
             </div>
             <div className="flex items-center gap-2">
               {a.attempt_number > 1 && <span className="text-sm text-[var(--muted)]">retry {a.attempt_number - 1}</span>}
-              <span className={chipClass(a)}>{CALL_STATUS_LABEL[a.status]}</span>
+              <span className={chipClass(a)}>
+                {a.result_state === 'NOT_CALLED_STOP_RULE' ? 'Not called' : CALL_STATUS_LABEL[a.status]}
+              </span>
             </div>
           </li>
         ))}

@@ -55,6 +55,14 @@ function ResultCard({ r, now }: { r: ResultView; now: Date }) {
         )}
       </div>
 
+      {r.history && (
+        <p className="mt-2 text-sm text-[var(--muted)]">
+          <span className="chip mr-2">History</span>
+          Reported it in {r.history.reported_available} of its last {r.history.answered} answered
+          calls. This is history, not today's confirmation.
+        </p>
+      )}
+
       {r.flags.length > 0 && (
         <ul className="mt-2 ml-5 list-disc text-sm text-[var(--warn)]">
           {r.flags.map((f) => (

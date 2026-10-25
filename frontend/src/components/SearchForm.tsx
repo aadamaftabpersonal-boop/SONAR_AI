@@ -27,6 +27,7 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
   const [geoNote, setGeoNote] = useState<string | null>(null)
   const [radius, setRadius] = useState(3)
   const [demo, setDemo] = useState(true)
+  const [askEveryone, setAskEveryone] = useState(false)
 
   const cat = config.categories[category]
   const location = coords ?? { ...PRESETS[preset], label: PRESETS[preset].label }
@@ -67,6 +68,7 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
         location: { lat: location.lat, lng: location.lng, label: location.label },
         radius_km: radius,
         demo_mode: demo,
+        mode: askEveryone ? 'THOROUGH' : 'FAST',
       },
       accessKey,
     )
@@ -203,6 +205,23 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
           </span>
         </label>
       </div>
+
+      <label className="flex items-start gap-3 text-sm">
+        <input
+          type="checkbox"
+          className="mt-1 size-4"
+          checked={askEveryone}
+          onChange={(e) => setAskEveryone(e.target.checked)}
+        />
+        <span>
+          <span className="font-semibold">Ask every shop</span>
+          <br />
+          <span className="text-[var(--muted)]">
+            By default Sonar stops calling once two shops have confirmed. Turn this on to call all of
+            them.
+          </span>
+        </span>
+      </label>
 
       {clarification && (
         <div role="alert" className="rounded-xl bg-[var(--warn-bg)] p-3 text-sm text-[var(--warn)]">

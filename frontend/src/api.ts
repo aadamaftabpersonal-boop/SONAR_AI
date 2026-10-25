@@ -91,10 +91,15 @@ export interface Counts {
   cancelled: number
 }
 
+export type SearchMode = 'FAST' | 'THOROUGH'
+
 export interface SearchView {
   search_id: string
   status: SearchStatus
   demo_mode: boolean
+  mode?: SearchMode | null
+  stopped_early?: boolean
+  calls_avoided?: number
   created_at: string
   started_at: string | null
   completed_at: string | null
@@ -104,7 +109,15 @@ export interface SearchView {
   error: { code: string; message: string | null } | null
 }
 
+export interface HistoryView {
+  answered: number
+  reported_available: number
+  label: 'HISTORY'
+}
+
 export interface ResultView {
+  /** Past record, shown beside a live answer and always labelled; never today's confirmation. */
+  history?: HistoryView | null
   business: BusinessRef
   result_state: ResultState
   data_origin: DataOrigin
@@ -153,6 +166,8 @@ export interface SearchRequest {
   location: { lat: number; lng: number; label?: string } | null
   radius_km: number
   demo_mode: boolean
+  /** FAST stops once enough shops confirm; THOROUGH ("ask everyone") calls them all. */
+  mode?: SearchMode
 }
 
 export class ApiError extends Error {

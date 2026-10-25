@@ -135,6 +135,32 @@ describe('Results', () => {
     expect(screen.getByText(/No shop gave a usable answer/)).toBeInTheDocument()
   })
 
+  it('shows a labelled history line beside a live answer and says it is not today\'s confirmation', () => {
+    show([result({ history: { answered: 10, reported_available: 9, label: 'HISTORY' } })])
+    expect(screen.getByText('History')).toBeInTheDocument()
+    expect(screen.getByText(/9 of its last 10 answered calls/)).toBeInTheDocument()
+    expect(screen.getByText(/history, not today's confirmation/)).toBeInTheDocument()
+    expect(screen.getByText('Reported available by phone')).toBeInTheDocument() // state unchanged
+  })
+
+  it('shows no history line when there is none', () => {
+    show([result({ history: null })])
+    expect(screen.queryByText('History')).not.toBeInTheDocument()
+  })
+
+  it('lists a skipped shop with its note and never as unavailable', () => {
+    show([
+      result(),
+      {
+        ...unanswered('NOT_CALLED_STOP_RULE', 'Skipped Shop'),
+        note: 'Not called: enough shops had already confirmed. This does not mean the item is unavailable.',
+      },
+    ])
+    expect(screen.getByText('Not called (enough answers)')).toBeInTheDocument()
+    expect(screen.getByText(/enough shops had already confirmed/)).toBeInTheDocument()
+    expect(screen.queryByText('Reported unavailable by phone')).not.toBeInTheDocument()
+  })
+
   it('states that the order does not imply truth', () => {
     show([result()])
     expect(screen.getByText('Ordered by x.')).toBeInTheDocument()

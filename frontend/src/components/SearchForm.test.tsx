@@ -60,6 +60,22 @@ describe('SearchForm', () => {
     expect(onSubmit.mock.calls[0][0].demo_mode).toBe(false)
   })
 
+  it('stops early by default and calls every shop only when asked', async () => {
+    const { onSubmit, user } = setup()
+    const fill = async () => {
+      await user.type(screen.getByLabelText('What are you looking for?'), 'X')
+      await user.type(screen.getByLabelText(/strength/i), '5')
+      await user.type(screen.getByLabelText('Access key'), 'k')
+    }
+    await fill()
+    await user.click(screen.getByRole('button', { name: /search by phone/i }))
+    expect(onSubmit.mock.calls[0][0].mode).toBe('FAST')
+
+    await user.click(screen.getByRole('checkbox', { name: /ask every shop/i }))
+    await user.click(screen.getByRole('button', { name: /search by phone/i }))
+    expect(onSubmit.mock.calls[1][0].mode).toBe('THOROUGH')
+  })
+
   it('keeps the access key in a password field', () => {
     setup()
     expect(screen.getByLabelText('Access key')).toHaveAttribute('type', 'password')
