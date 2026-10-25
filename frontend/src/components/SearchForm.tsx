@@ -141,6 +141,7 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
               id="locality"
               className="field"
               value={preset}
+              disabled={!!coords}
               onChange={(e) => {
                 setPreset(Number(e.target.value))
                 setCoords(null)
@@ -156,7 +157,14 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
               Use mine
             </button>
           </div>
-          {coords && <span className="text-[var(--muted)]">Searching around your location.</span>}
+          {coords && (
+            <span className="text-[var(--muted)]">
+              Searching around your current location, not the locality above.{' '}
+              <button type="button" className="font-semibold underline" onClick={() => setCoords(null)}>
+                Use the demo locality instead
+              </button>
+            </span>
+          )}
           {geoNote && <span className="text-[var(--warn)]">{geoNote}</span>}
         </div>
         <label className="grid gap-1 text-sm">

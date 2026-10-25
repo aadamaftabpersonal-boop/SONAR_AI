@@ -46,6 +46,11 @@ export const CALL_STATUS_LABEL: Record<CallStatus, string> = {
   TIMED_OUT: 'Timed out',
 }
 
+/** The label for a shop's call. A shop skipped by the stop rule is "Not called", never "Cancelled". */
+export function attemptStatusLabel(a: { status: CallStatus; result_state: ResultState }): string {
+  return a.result_state === 'NOT_CALLED_STOP_RULE' ? 'Not called' : CALL_STATUS_LABEL[a.status]
+}
+
 export const FLAG_TEXT: Record<string, string> = {
   EVIDENCE_NOT_FOUND: 'The quoted answer could not be found in the call transcript.',
   CONTRADICTORY: 'What the shop said contradicted itself, so Sonar did not pick a side.',

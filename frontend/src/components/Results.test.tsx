@@ -99,6 +99,16 @@ describe('Results', () => {
     }
   })
 
+  it('shows the explanatory note on a doubtful answer, so Uncertain never reads as "no"', () => {
+    show([
+      result({
+        result_state: 'UNCERTAIN',
+        note: 'The business was unsure. This does not mean the item is unavailable.',
+      }),
+    ])
+    expect(screen.getByText(/does not mean the item is unavailable/)).toBeInTheDocument()
+  })
+
   it('shows flags in plain language', () => {
     show([result({ result_state: 'UNCERTAIN', flags: ['CONTRADICTORY'] })])
     expect(screen.getByText(/contradicted itself/)).toBeInTheDocument()

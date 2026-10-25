@@ -48,6 +48,8 @@ export interface BusinessRef {
   name: string
   kind: BusinessKind
   distance_km: number | null
+  /** compass bearing from the search centre, 0 = north, clockwise (radar view) */
+  bearing_deg?: number | null
   address?: string | null
 }
 
@@ -98,6 +100,7 @@ export interface SearchView {
   status: SearchStatus
   demo_mode: boolean
   mode?: SearchMode | null
+  radius_km?: number | null
   stopped_early?: boolean
   calls_avoided?: number
   created_at: string

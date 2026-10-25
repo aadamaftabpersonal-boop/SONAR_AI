@@ -1,5 +1,5 @@
 import type { AttemptView, SearchView } from '../api'
-import { CALL_STATUS_LABEL } from '../copy'
+import { attemptStatusLabel } from '../copy'
 import { elapsed } from '../time'
 
 const BUSY_STATES = new Set(['DISPATCHING', 'DIALING', 'RINGING', 'IN_PROGRESS', 'PROCESSING'])
@@ -89,9 +89,7 @@ export function Progress({ search, running, onCancel }: Props) {
             </div>
             <div className="flex items-center gap-2">
               {a.attempt_number > 1 && <span className="text-sm text-[var(--muted)]">retry {a.attempt_number - 1}</span>}
-              <span className={chipClass(a)}>
-                {a.result_state === 'NOT_CALLED_STOP_RULE' ? 'Not called' : CALL_STATUS_LABEL[a.status]}
-              </span>
+              <span className={chipClass(a)}>{attemptStatusLabel(a)}</span>
             </div>
           </li>
         ))}

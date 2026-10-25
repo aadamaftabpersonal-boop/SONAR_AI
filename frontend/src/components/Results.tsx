@@ -1,6 +1,7 @@
 import type { ResultView } from '../api'
 import { ANSWER_STATES, NOT_UNAVAILABLE, RESULT_LABEL, flagText } from '../copy'
 import { clock, timeAgo, useNow } from '../time'
+import { ReadAloud } from './ReadAloud'
 
 const LABEL_CLASS: Record<string, string> = {
   REPORTED_AVAILABLE: 'chip chip-good',
@@ -39,6 +40,7 @@ function ResultCard({ r, now }: { r: ResultView; now: Date }) {
             {simulated && <span className="chip chip-warn">SIMULATED</span>}
           </div>
           {r.answer_summary && <p className="mt-1 text-sm">{r.answer_summary}</p>}
+          {r.note && <p className="mt-1 text-sm text-[var(--muted)]">{r.note}</p>}
         </div>
         <span className={LABEL_CLASS[r.result_state] ?? 'chip'}>{RESULT_LABEL[r.result_state]}</span>
       </div>
@@ -116,11 +118,14 @@ export function Results({
 
   return (
     <section aria-labelledby="results-h" className="grid gap-4">
-      <div>
-        <h2 id="results-h" className="text-lg font-bold">
-          What the shops reported
-        </h2>
-        <p className="text-sm text-[var(--muted)]">{explanation}</p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 id="results-h" className="text-lg font-bold">
+            What the shops reported
+          </h2>
+          <p className="text-sm text-[var(--muted)]">{explanation}</p>
+        </div>
+        <ReadAloud results={results} explanation={explanation} />
       </div>
 
       {answers.length === 0 && (

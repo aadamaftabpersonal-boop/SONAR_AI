@@ -111,6 +111,32 @@ describe('SearchForm', () => {
     expect(screen.getByText(/permission was denied/i)).toBeInTheDocument()
   })
 
+  it('searches around the user when they choose it, and lets them go back to the demo locality', async () => {
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: {
+        getCurrentPosition: (ok: (p: { coords: { latitude: number; longitude: number } }) => void) =>
+          ok({ coords: { latitude: 28.6139, longitude: 77.209 } }),
+      },
+    })
+    const { onSubmit, user } = setup()
+    await user.type(screen.getByLabelText('What are you looking for?'), 'X')
+    await user.type(screen.getByLabelText(/strength/i), '5')
+    await user.type(screen.getByLabelText('Access key'), 'k')
+
+    await user.click(screen.getByRole('button', { name: /use mine/i }))
+    // the dropdown can no longer mislead: it is disabled and the note says what is happening
+    expect(screen.getByLabelText('Where')).toBeDisabled()
+    expect(screen.getByText(/not the locality above/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /search by phone/i }))
+    expect(onSubmit.mock.calls[0][0].location).toMatchObject({ lat: 28.6139, lng: 77.209, label: 'My location' })
+
+    await user.click(screen.getByRole('button', { name: /use the demo locality instead/i }))
+    expect(screen.getByLabelText('Where')).toBeEnabled()
+    await user.click(screen.getByRole('button', { name: /search by phone/i }))
+    expect(onSubmit.mock.calls[1][0].location).toMatchObject({ lat: 12.9716, lng: 77.5946 })
+  })
+
   it('shows the medical-advice disclaimer', () => {
     setup()
     expect(screen.getByText(/does not give medical advice/i)).toBeInTheDocument()

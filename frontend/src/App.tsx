@@ -2,8 +2,10 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, api, isTerminalSearch } from './api'
 import type { ClarificationQuestion, PublicConfig, SearchRequest } from './api'
 import { Progress } from './components/Progress'
+import { Radar } from './components/Radar'
 import { Results } from './components/Results'
 import { SearchForm } from './components/SearchForm'
+import { TrustLedger } from './components/TrustLedger'
 import { useSearchPolling } from './usePolling'
 
 const readIdFromUrl = () => new URLSearchParams(window.location.search).get('s')
@@ -143,6 +145,9 @@ export default function App() {
             </div>
           )}
           <Progress search={search} running={running} onCancel={cancel} />
+          {search.radius_km != null && (
+            <Radar attempts={search.attempts} radiusKm={search.radius_km} />
+          )}
           {results && (
             <Results
               results={results.results}
@@ -150,6 +155,7 @@ export default function App() {
               explanation={results.ranking_explanation}
             />
           )}
+          {results && <TrustLedger results={results.results} />}
           {!running && (
             <button className="btn btn-primary justify-self-start" onClick={reset}>
               New search
