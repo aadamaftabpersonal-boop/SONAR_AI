@@ -1,0 +1,51 @@
+# Production-style stack. Copy to docker-compose.prod.yml, create .env.prod from .env.example,
+# and run `python scripts/check_prod_env.py --env-file .env.prod` BEFORE starting it.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+#
+# The database has no published port: only the app can reach it.
+
+services:
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env.prod}
+      POSTGRES_DB: sonar
+    volumes:
+      - sonar_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sonar -d sonar"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # Release step: apply migrations, then exit. The app starts only after it succeeds.
+  migrate:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["alembic", "upgrade", "head"]
+    env_file: .env.prod
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    env_file: .env.prod
+    ports:
+      - "8000:8000"   # put a TLS-terminating reverse proxy in front; Bolna needs a public HTTPS URL
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    volumes:
+      # real shop numbers and consent records: kept outside the image and out of git
+      - ./data/businesses.local.yaml:/app/data/businesses.local.yaml:ro
+
+volumes:
+  sonar_pgdata:

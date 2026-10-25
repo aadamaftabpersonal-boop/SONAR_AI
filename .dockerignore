@@ -1,0 +1,19 @@
+# Keep secrets, local data, caches and git history out of the image.
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+data/businesses.local.yaml
+spikes/**/captures
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.ruff_cache
+backend/.venv
+frontend/node_modules
+frontend/dist
+**/.claude
+*.zip
+*.pdf
+*.xlsx
