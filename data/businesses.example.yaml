@@ -1,0 +1,77 @@
+# Example seed. Every entry is FICTIONAL: names are made up and the numbers (+91 00000xxxxx)
+# do not belong to anyone. Real numbers go in data/businesses.local.yaml (git-ignored).
+#
+# participation_status: INVITED | CONSENTED | TEST_LINE | DECLINED | OPTED_OUT
+# CONSENTED and TEST_LINE require consent_recorded_at and consent_note.
+
+businesses:
+  - name: Example Pharmacy One
+    phone_e164: "+910000000001"
+    category: pharmacy
+    kind: REAL_BUSINESS
+    participation_status: CONSENTED
+    consent_recorded_at: "2026-10-26T10:00:00+05:30"
+    consent_note: "Example only. Verbal yes from the owner, recorded by Team Member A."
+    latitude: 12.9716
+    longitude: 77.5946
+    address: "1 Example Road"
+    best_call_window: "10:00-13:00 IST"
+
+  - name: Example Pharmacy Two
+    phone_e164: "+910000000002"
+    category: pharmacy
+    kind: REAL_BUSINESS
+    participation_status: CONSENTED
+    consent_recorded_at: "2026-10-26T11:00:00+05:30"
+    consent_note: "Example only."
+    latitude: 12.9780
+    longitude: 77.6010
+    address: "2 Example Road"
+
+  - name: Example Pharmacy Three
+    phone_e164: "+910000000003"
+    category: pharmacy
+    kind: REAL_BUSINESS
+    participation_status: CONSENTED
+    consent_recorded_at: "2026-10-27T09:30:00+05:30"
+    consent_note: "Example only."
+    latitude: 12.9650
+    longitude: 77.5800
+
+  - name: Example Pharmacy Invited
+    phone_e164: "+910000000004"
+    category: pharmacy
+    kind: REAL_BUSINESS
+    participation_status: INVITED
+    latitude: 12.9700
+    longitude: 77.5900
+
+  - name: Team Test Line A (role-play)
+    phone_e164: "+910000000005"
+    category: pharmacy
+    kind: TEAM_TEST_LINE
+    participation_status: TEST_LINE
+    consent_recorded_at: "2026-10-25T09:00:00+05:30"
+    consent_note: "Team member plays a shopkeeper. Always labelled role-play."
+    latitude: 12.9722
+    longitude: 77.5950
+
+  - name: Team Test Line B (role-play)
+    phone_e164: "+910000000006"
+    category: pharmacy
+    kind: TEAM_TEST_LINE
+    participation_status: TEST_LINE
+    consent_recorded_at: "2026-10-25T09:00:00+05:30"
+    consent_note: "Team member plays a shopkeeper. Always labelled role-play."
+    latitude: 12.9730
+    longitude: 77.5960
+
+  - name: Example Repair Shop
+    phone_e164: "+910000000007"
+    category: computer_repair
+    kind: REAL_BUSINESS
+    participation_status: CONSENTED
+    consent_recorded_at: "2026-10-27T12:00:00+05:30"
+    consent_note: "Example only."
+    latitude: 12.9740
+    longitude: 77.5970
