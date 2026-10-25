@@ -16,7 +16,6 @@ from __future__ import annotations
 
 import copy
 import logging
-import re
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -31,6 +30,7 @@ from app.providers.base import (
     ProviderTimeout,
     ProviderUnavailable,
 )
+from app.services.redact import mask_phone, redact
 
 log = logging.getLogger("sonar.bolna")
 
@@ -65,25 +65,6 @@ _VALUE_KEYS = ("objective", "subjective", "value", "answer")  # how a wrapped an
 
 TIMEOUT = httpx.Timeout(connect=5.0, read=15.0, write=10.0, pool=5.0)
 _BALANCE_HINTS = ("balance", "insufficient", "credit", "wallet")
-_PHONE = re.compile(r"\+\d[\d\s\-]{8,}\d|(?<![\w.\-])(?:91|0)?[6-9]\d{9}(?![\w\-])")
-
-
-def mask_phone(value: str) -> str:
-    digits = re.sub(r"\D", "", value)
-    return "***" if len(digits) < 8 else f"+{digits[:2]}{'*' * (len(digits) - 5)}{digits[-3:]}"
-
-
-def _redact(value: Any, key: str = "") -> Any:
-    """Strip recording URLs and phone numbers from the raw record kept for debugging."""
-    if key.lower() == EXEC_RECORDING_URL:
-        return "<redacted>"
-    if isinstance(value, dict):
-        return {k: _redact(v, k) for k, v in value.items()}
-    if isinstance(value, list):
-        return [_redact(v, key) for v in value]
-    if isinstance(value, str):
-        return _PHONE.sub(lambda m: mask_phone(m.group(0)), value)
-    return value
 
 
 def _message(response: httpx.Response) -> str:
@@ -307,5 +288,5 @@ class BolnaVoiceProvider:
             duration_seconds=_seconds(data.get(EXEC_DURATION)),
             cost_amount=_cost(data.get(EXEC_COST)),
             cost_currency=None,  # unknown until the spike (S-6) shows what the field means
-            raw=_redact(copy.deepcopy(data)),
+            raw=redact(copy.deepcopy(data)),
         )

@@ -577,6 +577,21 @@ def test_out_of_order_events_end_in_the_right_state(world):
     )
 
 
+def test_stored_events_never_contain_phone_numbers_or_recording_links(world):
+    number = "+91" + "9123456780"
+    payload = {
+        "execution_id": "exec-redact",
+        "status": "ringing",
+        "telephony_data": {"recording_url": "https://cdn.example.com/c.mp3", "to_number": number},
+    }
+    assert hook(world, payload).status_code == 200
+    stored = str(world.session.execute(select(ProviderEvent.payload)).scalar_one())
+    assert "9123456780" not in stored and "cdn.example.com" not in stored
+    # redaction must not break de-duplication: the same delivery twice is still one row
+    hook(world, payload)
+    assert world.session.execute(select(func.count()).select_from(ProviderEvent)).scalar_one() == 1
+
+
 def test_event_for_an_unknown_call_is_stored_as_an_orphan(world):
     assert hook(world, {"execution_id": "nobody", "status": "ringing"}).status_code == 200
     ev = world.session.execute(select(ProviderEvent)).scalars().one()

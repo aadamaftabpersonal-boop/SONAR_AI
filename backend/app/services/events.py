@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app.db.repositories import AttemptRepo, EventRepo
 from app.domain.enums import CallStatus
 from app.domain.transitions import is_terminal, map_bolna_status
+from app.services.redact import redact
 
 log = logging.getLogger("sonar.events")
 
@@ -46,11 +47,12 @@ def record_event(session: Session, provider: str, payload: dict[str, Any]) -> Ev
     attempts = AttemptRepo(session)
     attempt = attempts.by_provider_call_id(provider, call_id) if call_id else None
 
+    # what is kept is redacted at write time: no phone numbers, no recording links (D-021)
     stored = EventRepo(session).insert_or_ignore(
         provider=provider,
         provider_call_id=call_id,
         provider_status=raw_status,
-        payload=payload,
+        payload=redact(payload),
         call_attempt_id=attempt.id if attempt else None,
     )
     if not stored:
