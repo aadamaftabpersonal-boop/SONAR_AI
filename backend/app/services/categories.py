@@ -25,6 +25,7 @@ class CategoryConfig(BaseModel):
     required_fields_default: list[str]
     price_max_plausible_inr: int = 100000
     blocked_terms: list[str] = Field(default_factory=list)
+    osm_tags: list[str] = Field(default_factory=list)  # OpenStreetMap discovery (D-059)
 
 
 class CategoryError(ValueError):

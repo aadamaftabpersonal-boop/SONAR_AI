@@ -88,6 +88,15 @@ class Settings(BaseSettings):
     feature_watches: bool = False
     feature_cache_reuse: bool = False  # T7.4: show a fresh earlier live answer instead of calling
 
+    # Map, discovery and shop self opt-in (D-059..D-061)
+    feature_discovery: bool = False
+    feature_opt_in: bool = False
+    overpass_url: str = "https://overpass-api.de/api/interpreter"
+    discovery_timeout_seconds: float = 25.0
+    public_base_url: str = "http://localhost:8000"  # used only to print invite links
+    opt_in_token_days: int = 14
+    rate_limit_join_per_minute: int = 5
+
 
 def bolna_agent_ids(settings: Settings) -> dict[str, str]:
     """Category -> Bolna agent id, for the categories that have one configured."""

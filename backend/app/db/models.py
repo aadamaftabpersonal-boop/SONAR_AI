@@ -60,6 +60,8 @@ class Business(Base):
         CheckConstraint("latitude BETWEEN -90 AND 90", name="ck_businesses_lat"),
         CheckConstraint("longitude BETWEEN -180 AND 180", name="ck_businesses_lng"),
         UniqueConstraint("digest_token", name="uq_businesses_digest_token"),
+        UniqueConstraint("external_source", "external_id", name="uq_businesses_external"),
+        UniqueConstraint("stop_token_hash", name="uq_businesses_stop_token"),
         CheckConstraint(in_values("kind", enums.BusinessKind), name="ck_businesses_kind"),
         CheckConstraint(
             in_values("participation_status", enums.ParticipationStatus),
@@ -91,8 +93,34 @@ class Business(Base):
         Boolean, nullable=False, server_default=text("false")
     )
     digest_token: Mapped[str | None] = mapped_column(Text)
+    # Discovery (D-059): where a shop was found; discovered shops are INVITED, never callable
+    external_source: Mapped[str | None] = mapped_column(Text)
+    external_id: Mapped[str | None] = mapped_column(Text)
+    discovered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    opening_hours_text: Mapped[str | None] = mapped_column(Text)
+    # Self opt-in (D-061): how consent was given, and a pending request from the public form
+    consent_source: Mapped[str | None] = mapped_column(Text)
+    opt_in_requested_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    preferred_language: Mapped[str | None] = mapped_column(Text)
+    stop_token_hash: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _now()
     updated_at: Mapped[datetime] = _now()
+
+
+class OptInToken(Base):
+    """A single-use, expiring invite for one shop to opt in itself (D-061). Only a hash is kept."""
+
+    __tablename__ = "opt_in_tokens"
+
+    id: Mapped[uuid.UUID] = _uuid_pk()
+    business_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("businesses.id", ondelete="CASCADE"), nullable=False
+    )
+    token_hash: Mapped[str] = mapped_column(Text, nullable=False, unique=True)
+    created_by: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = _now()
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class SearchJob(Base):

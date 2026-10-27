@@ -49,6 +49,7 @@ from app.services.directory import load_candidates
 from app.services.geo import bearing_deg, distance_km
 from app.services.jobs import refresh_job
 from app.services.planning import PlannedCall, plan_order
+from app.services.plans import max_targets
 from app.services.query import parse
 from app.services.result_copy import RANKING_EXPLANATION, RETRYING_NOTE
 from app.services.results import (
@@ -151,7 +152,7 @@ def create_search(
         lng=parsed.lng,
         radius_km=parsed.radius_km,
         now=now,
-        max_targets=settings.max_targets_per_search - len(cached),
+        max_targets=max_targets(parsed.plan, settings.max_targets_per_search) - len(cached),
         daily_cap=settings.business_daily_call_cap,
         cooldown_minutes=settings.business_cooldown_minutes,
     )
@@ -269,7 +270,9 @@ def _cached_answers(
     )
     chosen: dict[uuid.UUID, tuple[PlannedTarget, BusinessResponse]] = {}
     for d, c in in_range:
-        if c.business_id in found and len(chosen) < settings.max_targets_per_search:
+        if c.business_id in found and len(chosen) < max_targets(
+            parsed.plan, settings.max_targets_per_search
+        ):
             target = PlannedTarget(
                 business_id=c.business_id, name=c.name, kind=c.kind, distance_km=round(d, 2)
             )
@@ -369,6 +372,7 @@ def get_search(search_id: str, session: Session = Depends(get_session)) -> Searc
         search_id=job.id,
         status=SearchStatus(job.status),
         demo_mode=job.demo_mode,
+        category=job.category,
         mode=SearchMode(job.mode),
         radius_km=float(job.radius_km) if job.radius_km is not None else None,
         center_lat=job.center_lat,
