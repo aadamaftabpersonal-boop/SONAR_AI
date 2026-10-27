@@ -9,6 +9,8 @@ the spike, and tests are re-based on those captures then.
 from __future__ import annotations
 
 import hashlib
+import time
+from collections.abc import Callable
 from decimal import Decimal
 from typing import Any
 
@@ -169,6 +171,8 @@ class SimulatedVoiceProvider:
         scenarios_by_phone: dict[str, str] | None = None,
         default: str = "available",
         cycle: tuple[str, ...] | None = None,
+        clock: Callable[[], float] = time.monotonic,
+        live_line_seconds: float = 1.5,
     ):
         if default not in SCENARIOS:
             raise ValueError(f"unknown scenario: {default}")
@@ -180,6 +184,9 @@ class SimulatedVoiceProvider:
         self._records: dict[str, ProviderCallRecord] = {}
         self._scenario_of: dict[str, str] = {}
         self.calls_started = 0
+        self._clock = clock
+        self._live_line_seconds = live_line_seconds
+        self._started_at: dict[str, float] = {}
 
     def scenario_for(self, to_e164: str) -> str:
         if to_e164 in self._by_phone:
@@ -198,6 +205,7 @@ class SimulatedVoiceProvider:
         self.calls_started += 1
         self._scenario_of[call_id] = scenario
         self._records[call_id] = self._build_record(call_id, scenario, req.user_data)
+        self._started_at.setdefault(call_id, self._clock())
         return ProviderCallRef(
             provider="simulated", provider_call_id=call_id, provider_status="queued"
         )
@@ -207,6 +215,17 @@ class SimulatedVoiceProvider:
             return self._records[provider_call_id]
         except KeyError:
             raise ProviderRejected(f"unknown call id: {provider_call_id}") from None
+
+    async def live_transcript(self, provider_call_id: str) -> str | None:
+        """The part of the scripted conversation spoken so far: one more line every
+        `live_line_seconds`, so the demo ticker grows like a real call (Bible 51, T-1)."""
+        record = self._records.get(provider_call_id)
+        if record is None or not record.transcript:
+            return None
+        lines = record.transcript.splitlines()
+        elapsed = self._clock() - self._started_at.get(provider_call_id, self._clock())
+        shown = min(len(lines), 1 + int(elapsed // self._live_line_seconds))
+        return "\n".join(lines[:shown])
 
     # --- helpers for tests and the demo ---------------------------------------------------
 

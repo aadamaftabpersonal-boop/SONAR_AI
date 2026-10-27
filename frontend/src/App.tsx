@@ -5,6 +5,7 @@ import { Progress } from './components/Progress'
 import { Results } from './components/Results'
 import { ResultsMap } from './components/ResultsMap'
 import { SearchForm } from './components/SearchForm'
+import { Ticker } from './components/Ticker'
 import { TrustLedger } from './components/TrustLedger'
 import { useSearchPolling } from './usePolling'
 
@@ -175,6 +176,9 @@ export default function App() {
             </div>
           )}
           <Progress search={search} running={running} onCancel={cancel} />
+          {config?.features?.live_ticker && searchId && (
+            <Ticker searchId={searchId} running={running} />
+          )}
           <ResultsMap search={search} />
           {results && (
             <Results

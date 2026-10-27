@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.api import misc, searches, shop, webhooks
+from app.api import live, misc, searches, shop, webhooks
 from app.api.deps import SlidingWindowLimiter
 from app.api.errors import ApiError, install_error_handlers
 from app.config import Settings, bolna_agent_ids, get_settings
@@ -105,6 +105,7 @@ def create_app() -> FastAPI:
     app.include_router(searches.router)
     app.include_router(webhooks.router)
     app.include_router(shop.router)
+    app.include_router(live.router)
     _serve_frontend(app, settings)  # registered last so it never shadows an API route
     return app
 

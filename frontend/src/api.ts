@@ -162,6 +162,27 @@ export interface PublicConfig {
   max_targets_per_search: number
   simulated_banner: string
   disclaimer: string
+  features?: Record<string, boolean>
+}
+
+export interface TickerLine {
+  speaker: string
+  text: string
+}
+
+export interface LiveCall {
+  attempt_id: string
+  business_id: string
+  business_name: string
+  status: CallStatus
+  lines: TickerLine[]
+  reason: 'no_live_text' | 'not_shown' | 'provider_unavailable' | null
+  updated_at: string
+}
+
+export interface LiveView {
+  search_id: string
+  calls: LiveCall[]
 }
 
 export interface SearchRequest {
@@ -220,6 +241,7 @@ export const api = {
     }),
   getSearch: (id: string) => request<SearchView>(`/api/searches/${id}`),
   getResults: (id: string) => request<ResultsView>(`/api/searches/${id}/results`),
+  getLive: (id: string) => request<LiveView>(`/api/searches/${id}/live`),
   cancel: (id: string, accessKey: string) =>
     request<{ status: SearchStatus }>(`/api/searches/${id}/cancel`, {
       method: 'POST',

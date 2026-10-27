@@ -52,6 +52,7 @@ class PublicConfig(BaseModel):
     max_targets_per_search: int
     simulated_banner: str
     disclaimer: str
+    features: dict[str, bool] = {}
 
 
 @router.get("/api/config/public", response_model=PublicConfig)
@@ -70,6 +71,7 @@ def public_config(settings: Settings = Depends(get_settings)) -> PublicConfig:
         max_targets_per_search=settings.max_targets_per_search,
         simulated_banner=SIMULATED_BANNER,
         disclaimer="Sonar reports what the business said. It does not give medical advice.",
+        features={"live_ticker": settings.feature_live_ticker},
     )
 
 
