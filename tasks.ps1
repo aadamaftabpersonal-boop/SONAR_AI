@@ -20,7 +20,7 @@ switch ($Task) {
         Run $Py @("-m", "pip", "install", "-e", ".[dev]") $Backend
     }
     "doctor" {
-        Run "python" @("--version"); Run "docker" @("--version"); Run "git" @("--version")
+        Run "python" @("--version"); Run "node" @("--version"); Run "docker" @("--version"); Run "git" @("--version")
         if (Test-Path $Py) { Run $Py @("--version") } else { Write-Host "no venv yet: run setup" }
     }
     "db-up" { Run "docker" @("compose", "up", "-d", "--wait", "db") }
@@ -42,9 +42,15 @@ switch ($Task) {
         Run "npm" @("--prefix", "frontend", "run", "build")
         Run $Py @("scripts/check_bundle.py")
     }
+    "check-wave2" {
+        $flags = "FEATURE_STOP_RULE","FEATURE_HISTORY","FEATURE_DIGEST","FEATURE_LIVE_TICKER","FEATURE_VOICE_UI","FEATURE_DISCOVERY","FEATURE_OPT_IN"
+        foreach ($f in $flags) { Set-Item "env:$f" "true" }
+        try { Run $Py @("-m", "pytest") $Backend } finally { foreach ($f in $flags) { Remove-Item "env:$f" } }
+    }
+    "e2e" { Run "npm" @("--prefix", "e2e", "test") }
     "check" {
         & $PSCommandPath lint; & $PSCommandPath test; & $PSCommandPath secrets
         & $PSCommandPath claims
     }
-    default { Write-Host "tasks: setup doctor db-up db-down run test test-int lint fmt secrets claims check-bundle check" }
+    default { Write-Host "tasks: setup doctor db-up db-down run test test-int lint fmt secrets claims check-bundle check check-wave2 e2e" }
 }
