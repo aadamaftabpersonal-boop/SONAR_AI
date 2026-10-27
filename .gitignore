@@ -24,3 +24,5 @@ frontend/dist/
 .DS_Store
 Thumbs.db
 .claude/settings.local.json
+e2e/test-results/
+e2e/playwright-report/

@@ -1,0 +1,12 @@
+{
+  "name": "sonar-e2e",
+  "private": true,
+  "type": "module",
+  "description": "Browser end-to-end test of the Sonar journey in demo mode (Build Map T8.8). Kept apart from frontend/ so the app's lockfile and Docker build are untouched.",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.48.2"
+  }
+}
