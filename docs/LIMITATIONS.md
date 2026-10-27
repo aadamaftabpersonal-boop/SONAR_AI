@@ -101,6 +101,16 @@ Last checked 2026-10-27.
   within 24 hours) to the same question is shown as "Earlier call, HH:MM (not called again)". The
   shop may have sold out since; the time is always shown.
 - **Browser end-to-end test** (`e2e/`): demo mode only; it has not been run yet.
+- **Shop discovery** (`FEATURE_DISCOVERY`) uses OpenStreetMap only. Many Indian shops are missing
+  from OSM or have no phone number there, so the map shows only part of what is really nearby. The
+  public Overpass server has usage limits and no uptime promise. Found shops are never called; they
+  appear as "Not joined yet". Attribution to OpenStreetMap contributors must stay visible.
+- **Shop self opt-in** (`FEATURE_OPT_IN`): there is no OTP check. An invite link forwarded to
+  someone else at the shop could be used by them, and the public form relies on a teammate checking
+  the number by hand before inviting. The page is in English only until a native speaker reviews a
+  translation. The legal position on automated calls (B-05) is still unresolved.
+- **Plans** (Free, Plus, Pro) are a demo setting: there is no payment and nothing stops a user from
+  choosing Pro.
 
 ## Not built
 

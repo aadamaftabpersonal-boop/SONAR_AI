@@ -91,3 +91,19 @@ after `RETENTION_RESPONSE_DAYS` (90), automatically every hour.
 
 See `docs/DEMO_SCRIPT.md`. In addition: confirm `FEATURE_*` flags are set exactly as rehearsed,
 the daily budget is what you can afford, and a dated backup recording exists.
+
+## Inviting a shop (FEATURE_OPT_IN)
+
+1. Make sure the shop is in the directory: found by discovery (`FEATURE_DISCOVERY`, the map's shops
+   marked "Not joined yet"), added from the seed file as `INVITED`, or listed by
+   `scripts\approve_opt_in.py` after it asked to join at `/join`.
+2. For a public request, **check the number belongs to the shop** (call it yourself or visit) before
+   anything else.
+3. Create the link: `backend\.venv\Scripts\python scripts\invite_shop.py --phone "<shop number>" --by "<your name>"`
+   (or `scripts\approve_opt_in.py <business-id> --by "<your name>"` for a public request). Set
+   `PUBLIC_BASE_URL` so the printed link points at the deployed site.
+4. Hand the link over yourself: in person, on paper, or by WhatsApp to the shop's own number. It is
+   single use and expires after `OPT_IN_TOKEN_DAYS` days.
+5. The shop opens it, reads what Sonar does, ticks two boxes and agrees. Only then is it callable.
+   It receives a private stop link, which works even if the feature is turned off.
+6. Never re-invite a shop that said no or opted out; the tool refuses anyway.

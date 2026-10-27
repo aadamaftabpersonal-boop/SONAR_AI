@@ -195,6 +195,8 @@ that matter most:
 | `FEATURE_STOP_RULE`, `FEATURE_HISTORY`, `FEATURE_DIGEST` | Optional features | off |
 | `FEATURE_CACHE_REUSE` | Show a shop's fresh earlier live answer to the same question instead of calling again (labelled "Earlier call") | off |
 | `FEATURE_LIVE_TICKER` | Show the last lines of calls in progress, for team test lines and simulated calls only | off |
+| `FEATURE_DISCOVERY` | Find nearby shops on OpenStreetMap; they are stored as not joined and never called | off |
+| `FEATURE_OPT_IN` | Shops join themselves through an invite link (`scripts/invite_shop.py`) or ask to join at `/join` | off |
 | `FRONTEND_DIST` | Serve the built web app from the API | unset |
 | `VITE_TILE_URL` | Map tile server (public, no secrets) | OpenStreetMap |
 

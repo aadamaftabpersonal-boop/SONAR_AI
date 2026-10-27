@@ -53,6 +53,14 @@ paragraph of variant A with:
 Run A and B as a fair comparison (hypothesis H-4): ask each shop with **one** script only, alternate
 between them, and log the result per arm in `docs/DISCOVERY_LOG.md`.
 
+## 3a. Variant C: self opt-in by invite link (D-061)
+
+The shop agrees on its own invite page (`/join/<token>`), which states the same facts as variant A.
+Hand the link over with one sentence, for example: "This link explains what Sonar does; if you are
+happy for our AI assistant to call, you can agree there, and you can stop it any time." Do not press
+for an answer. The page records the consent itself (`consent_source = SELF_OPT_IN`); you do not
+edit the seed file for these shops. See `docs/OPERATIONS.md`, "Inviting a shop".
+
 ## 4. Answers to likely questions (say only what is true today)
 
 | They ask | Say |
