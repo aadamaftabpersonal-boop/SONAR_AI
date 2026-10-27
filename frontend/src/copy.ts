@@ -65,6 +65,10 @@ export const FLAG_TEXT: Record<string, string> = {
   NO_EXTRACTION: 'No structured answer was captured.',
   INVALID_AVAILABILITY: 'The captured answer was not in a recognised form.',
   OPT_OUT_REQUESTED: 'The business asked not to be called again. Sonar will not call them again.',
+  SHOP_REAFFIRMED_AT_END:
+    'The call noted a different item, but the shop ended by saying it has it, so Sonar did not pick a side.',
+  ALTERNATIVE_NOT_IN_TRANSCRIPT:
+    "The alternative was not in the shop's own words in the call, so it is not shown.",
 }
 
 export function flagText(flag: string): string {
