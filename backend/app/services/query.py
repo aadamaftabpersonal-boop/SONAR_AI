@@ -20,6 +20,7 @@ from app.domain.schemas import (
     is_safe_text,
 )
 from app.services.categories import ALLOWED_REQUIRED_FIELDS, CategoryConfig
+from app.services.plans import radius_error
 
 _ATTR_KEY = re.compile(r"^[a-z][a-z0-9_]{0,29}$")
 _WITHIN_KM = re.compile(
@@ -89,6 +90,10 @@ def parse(
             "radius_km", f"radius_km must be between {MIN_RADIUS_KM:g} and {MAX_RADIUS_KM:g}"
         )
 
+    plan_problem = radius_error(request.plan, request.radius_km)
+    if plan_problem:
+        raise QueryValidationError("radius_km", plan_problem)
+
     # 5. Required fields
     required = request.required_fields or list(cfg.required_fields_default)
     unknown = set(required) - ALLOWED_REQUIRED_FIELDS
@@ -146,6 +151,7 @@ def parse(
         force_fresh=request.force_fresh,
         demo_mode=request.demo_mode,
         mode=request.mode,
+        plan=request.plan,
     )
 
 

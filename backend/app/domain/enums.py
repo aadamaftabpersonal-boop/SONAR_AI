@@ -139,3 +139,11 @@ class GroundTruthOutcome(StrEnum):
     AGREE = "AGREE"
     DISAGREE = "DISAGREE"
     INCONCLUSIVE = "INCONCLUSIVE"
+
+
+class PlanTier(StrEnum):
+    """Demo setting that bounds a search (D-060). Not billing and not access control."""
+
+    FREE = "FREE"
+    PLUS = "PLUS"
+    PRO = "PRO"

@@ -125,6 +125,19 @@ def test_radius_boundaries_are_allowed(radius):
     assert isinstance(parse(req(radius_km=radius), CATS), ParsedQuery)
 
 
+@pytest.mark.parametrize(("plan", "radius"), [("FREE", 4), ("PLUS", 7), ("PRO", 12)])
+def test_radius_beyond_the_plan_is_a_validation_error(plan, radius):
+    with pytest.raises(QueryValidationError) as exc:
+        parse(req(plan=plan, radius_km=radius), CATS)
+    assert exc.value.field == "radius_km" and "plan" in exc.value.message
+
+
+@pytest.mark.parametrize(("plan", "radius"), [("FREE", 3), ("PLUS", 6), ("PRO", 10)])
+def test_radius_within_the_plan_carries_the_plan(plan, radius):
+    parsed = parse(req(plan=plan, radius_km=radius), CATS)
+    assert isinstance(parsed, ParsedQuery) and parsed.plan == plan
+
+
 def test_radius_hint_conflict_is_clarified_not_guessed():
     result = parse(req(query_text="shops within 1 km please", radius_km=5), CATS)
     assert isinstance(result, Clarification)

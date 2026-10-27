@@ -16,6 +16,7 @@ from app.domain.enums import (
     ErrorClass,
     ExactMatch,
     Freshness,
+    PlanTier,
     ResultState,
     SearchMode,
     SearchStatus,
@@ -67,6 +68,7 @@ class SearchRequest(BaseModel):
     force_fresh: bool = False
     demo_mode: bool = False
     mode: SearchMode = SearchMode.FAST
+    plan: PlanTier | None = None  # demo setting (D-060); None keeps the server-wide limits
 
 
 class ParsedQuery(BaseModel):
@@ -84,6 +86,7 @@ class ParsedQuery(BaseModel):
     force_fresh: bool = False
     demo_mode: bool = False
     mode: SearchMode = SearchMode.FAST
+    plan: PlanTier | None = None
 
 
 class ClarificationQuestion(BaseModel):
@@ -168,6 +171,7 @@ class SearchView(BaseModel):
     search_id: UUID
     status: SearchStatus
     demo_mode: bool
+    category: str | None = None
     mode: SearchMode | None = None
     radius_km: float | None = None
     center_lat: float | None = None  # the search point, so the map can place shops from
