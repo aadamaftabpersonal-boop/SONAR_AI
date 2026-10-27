@@ -32,6 +32,8 @@ from app.domain.schemas import (
     Clarification,
     Counts,
     HistoryView,
+    ParsedQuery,
+    PlannedTarget,
     QueryValidationError,
     Refusal,
     ResultsView,
@@ -45,6 +47,7 @@ from app.services import selector
 from app.services.categories import get_categories
 from app.services.directory import load_candidates
 from app.services.geo import bearing_deg, distance_km
+from app.services.jobs import refresh_job
 from app.services.planning import PlannedCall, plan_order
 from app.services.query import parse
 from app.services.result_copy import RANKING_EXPLANATION, RETRYING_NOTE
@@ -54,6 +57,7 @@ from app.services.results import (
     view_from_response,
     view_without_response,
 )
+from app.services.reuse import copy_into_search, find_reusable
 
 router = APIRouter(prefix="/api")
 
@@ -139,13 +143,15 @@ def create_search(
         )
 
     candidates = load_candidates(session, parsed.category, now)
+    cached = _cached_answers(session, settings, parsed, candidates, now)
+    candidates = [c for c in candidates if c.business_id not in cached]
     selection = selector.select(
         candidates,
         lat=parsed.lat,
         lng=parsed.lng,
         radius_km=parsed.radius_km,
         now=now,
-        max_targets=settings.max_targets_per_search,
+        max_targets=settings.max_targets_per_search - len(cached),
         daily_cap=settings.business_daily_call_cap,
         cooldown_minutes=settings.business_cooldown_minutes,
     )
@@ -160,7 +166,7 @@ def create_search(
         "force_fresh": parsed.force_fresh,
     }
 
-    if not selection.targets:
+    if not selection.targets and not cached:
         reasons = ", ".join(f"{n} {why.replace('_', ' ')}" for why, n in selection.excluded.items())
         message = (
             f"No consenting businesses are available to call for this search "
@@ -186,7 +192,7 @@ def create_search(
     job = jobs.create(
         **common,
         status=SearchStatus.CREATED,
-        planned_targets=len(selection.targets),
+        planned_targets=len(selection.targets) + len(cached),
         deadline_at=now + timedelta(seconds=settings.search_deadline_seconds),
         mode=parsed.mode,
         stop_rule={"k": settings.stop_rule_k} if fast else None,
@@ -210,15 +216,65 @@ def create_search(
             priority_score=item.priority,
             prior_snapshot=item.snapshot,
         )
+    for _target, response in cached.values():
+        copy_into_search(session, job.id, response, now)
     AuditRepo(session).add(
-        "api", "search_created", search_job_id=job.id, detail={"targets": len(selection.targets)}
+        "api",
+        "search_created",
+        search_job_id=job.id,
+        detail={"targets": len(selection.targets), "reused_answers": len(cached)},
     )
+    status = SearchStatus.CREATED
+    if cached:
+        status = refresh_job(session, job.id, now) or status  # all reused: done at once
     session.commit()
+    planned = [p.target for p in plan] if fast else list(selection.targets)
     return SearchCreated(
         search_id=job.id,
-        status=SearchStatus.CREATED,
-        planned_targets=[p.target for p in plan] if fast else selection.targets,
+        status=status,
+        planned_targets=[t for t, _ in cached.values()] + planned,
     )
+
+
+def _cached_answers(
+    session: Session,
+    settings: Settings,
+    parsed: ParsedQuery,
+    candidates: list[selector.Candidate],
+    now: datetime,
+) -> dict[uuid.UUID, tuple[PlannedTarget, BusinessResponse]]:
+    """Shops in range whose fresh live answer to the same question can be shown instead of a new
+    call (T7.4). Never for demo searches, never with force_fresh, never for a shop that is no longer
+    callable (consent is re-checked here exactly as for a call)."""
+    if not settings.feature_cache_reuse or parsed.force_fresh or parsed.demo_mode:
+        return {}
+    in_range: list[tuple[float, selector.Candidate]] = []
+    for c in candidates:
+        if c.opted_out or c.participation_status not in selector.CALLABLE:
+            continue
+        if c.lat is None or c.lng is None:
+            continue
+        d = distance_km(parsed.lat, parsed.lng, c.lat, c.lng)
+        if d <= parsed.radius_km:
+            in_range.append((d, c))
+    in_range.sort(key=lambda pair: (pair[0], str(pair[1].business_id)))
+    ttl = _ttl(settings)
+    found = find_reusable(
+        session,
+        [c.business_id for _, c in in_range],
+        parsed.model_dump(mode="json"),
+        now,
+        ttl_availability=ttl["availability"],
+        ttl_price=ttl["price"],
+    )
+    chosen: dict[uuid.UUID, tuple[PlannedTarget, BusinessResponse]] = {}
+    for d, c in in_range:
+        if c.business_id in found and len(chosen) < settings.max_targets_per_search:
+            target = PlannedTarget(
+                business_id=c.business_id, name=c.name, kind=c.kind, distance_km=round(d, 2)
+            )
+            chosen[c.business_id] = (target, found[c.business_id])
+    return chosen
 
 
 def _business_ref(job: SearchJob, business: Business) -> BusinessRef:

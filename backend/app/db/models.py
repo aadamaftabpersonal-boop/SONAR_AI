@@ -36,7 +36,7 @@ def in_values(column: str, values: type[StrEnum] | list[str]) -> str:
 
 
 # Part I database values. Wave 2 values (e.g. NOT_CALLED_STOP_RULE) arrive with migration 0002.
-RESPONSE_ORIGINS = ["LIVE_CALL", "SIMULATED"]
+RESPONSE_ORIGINS = ["LIVE_CALL", "SIMULATED", "CACHED_LIVE"]  # CACHED_LIVE: migration 0004
 
 
 class Base(DeclarativeBase):
@@ -136,7 +136,7 @@ class CallAttempt(Base):
     __table_args__ = (
         CheckConstraint("attempt_number BETWEEN 1 AND 5", name="ck_call_attempts_number"),
         CheckConstraint(
-            in_values("provider", ["bolna", "simulated"]), name="ck_call_attempts_provider"
+            in_values("provider", ["bolna", "simulated", "cache"]), name="ck_call_attempts_provider"
         ),
         CheckConstraint(in_values("status", enums.CallStatus), name="ck_call_attempts_status"),
         UniqueConstraint("search_job_id", "business_id", "attempt_number", name="uq_attempt_slot"),

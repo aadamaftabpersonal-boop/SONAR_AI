@@ -72,6 +72,7 @@ class Settings(BaseSettings):
     shop_update_max_per_day: int = 6
     shop_update_ttl_hours: int = 12
     live_ticker_lines: int = 6
+    live_min_pull_seconds: float = 2.0  # NFR-19: at most one provider pull per call per interval
     watch_min_interval_minutes: int = 120
     # Keep simulator runs out of the shop history by default so demos never pollute real stats
     # (D-022 extended). Tests and rehearsals of the learning loop switch it on.
@@ -85,6 +86,7 @@ class Settings(BaseSettings):
     feature_voice_ui: bool = False
     feature_compiler: bool = False
     feature_watches: bool = False
+    feature_cache_reuse: bool = False  # T7.4: show a fresh earlier live answer instead of calling
 
 
 def bolna_agent_ids(settings: Settings) -> dict[str, str]:

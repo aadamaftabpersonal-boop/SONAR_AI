@@ -38,6 +38,9 @@ function ResultCard({ r, now }: { r: ResultView; now: Date }) {
               <span className="chip chip-warn">Team test line (role-play)</span>
             )}
             {simulated && <span className="chip chip-warn">SIMULATED</span>}
+            {r.data_origin === 'CACHED_LIVE' && r.answer_timestamp && (
+              <span className="chip">Earlier call, {clock(r.answer_timestamp)} (not called again)</span>
+            )}
           </div>
           {r.answer_summary && <p className="mt-1 text-sm">{r.answer_summary}</p>}
           {r.note && <p className="mt-1 text-sm text-[var(--muted)]">{r.note}</p>}

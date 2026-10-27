@@ -52,6 +52,16 @@ describe('Results', () => {
     expect(screen.getByText('Fresh')).toBeInTheDocument()
   })
 
+  it('labels a reused earlier answer with its original time', () => {
+    show([result({ data_origin: 'CACHED_LIVE' })])
+    expect(screen.getByText(/Earlier call, .* \(not called again\)/)).toBeInTheDocument()
+  })
+
+  it('does not label a live answer as an earlier call', () => {
+    show([result()])
+    expect(screen.queryByText(/Earlier call/)).not.toBeInTheDocument()
+  })
+
   it('says price not quoted instead of inventing one', () => {
     show([result({ reported: { exact_match: 'CONFIRMED', price: null, quantity: null, wait_time_minutes: null, open_status: null } })])
     expect(screen.getByText('Price not quoted')).toBeInTheDocument()
