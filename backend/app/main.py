@@ -12,7 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
-from app.api import live, misc, searches, shop, webhooks
+from app.api import businesses, join, live, misc, searches, shop, webhooks
 from app.api.deps import SlidingWindowLimiter
 from app.api.errors import ApiError, install_error_handlers
 from app.config import Settings, bolna_agent_ids, get_settings
@@ -83,6 +83,8 @@ def create_app() -> FastAPI:
 
     app = FastAPI(title="Sonar", version="0.1.0", lifespan=lifespan)
     app.state.search_limiter = SlidingWindowLimiter(settings.rate_limit_search_per_minute)
+    app.state.join_limiter = SlidingWindowLimiter(settings.rate_limit_join_per_minute)
+    app.state.discover_limiter = SlidingWindowLimiter(settings.rate_limit_join_per_minute)
     app.state.providers = default_providers(settings)
 
     origins = [o.strip() for o in settings.allowed_origins.split(",") if o.strip()]
@@ -106,6 +108,8 @@ def create_app() -> FastAPI:
     app.include_router(webhooks.router)
     app.include_router(shop.router)
     app.include_router(live.router)
+    app.include_router(businesses.router)
+    app.include_router(join.router)
     _serve_frontend(app, settings)  # registered last so it never shadows an API route
     return app
 
