@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
-import type { ClarificationQuestion, PublicConfig, SearchRequest } from '../api'
+import { PLANS } from '../api'
+import type { ClarificationQuestion, PlanTier, PublicConfig, SearchRequest } from '../api'
 import { MapView } from './MapView'
 
 const PRESETS = [
@@ -27,6 +28,8 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
   const [coords, setCoords] = useState<{ lat: number; lng: number; label: string } | null>(null)
   const [geoNote, setGeoNote] = useState<string | null>(null)
   const [radius, setRadius] = useState(3)
+  const [plan, setPlan] = useState<PlanTier>('FREE')
+  const maxRadius = Math.min(config.max_radius_km, PLANS[plan].maxRadiusKm)
   const [demo, setDemo] = useState(true)
   const [askEveryone, setAskEveryone] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
@@ -78,6 +81,7 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
         radius_km: radius,
         demo_mode: demo,
         mode: askEveryone ? 'THOROUGH' : 'FAST',
+        plan,
       },
       accessKey,
     )
@@ -193,13 +197,32 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
           {geoNote && <span className="text-[var(--warn)]">{geoNote}</span>}
         </div>
         <label className="grid gap-1 text-sm">
+          <span className="font-semibold">Plan</span>
+          <select
+            className="field"
+            value={plan}
+            onChange={(e) => {
+              const next = e.target.value as PlanTier
+              setPlan(next)
+              setRadius((r) => Math.min(r, PLANS[next].maxRadiusKm))
+            }}
+          >
+            {(Object.keys(PLANS) as PlanTier[]).map((p) => (
+              <option key={p} value={p}>
+                {PLANS[p].name}: up to {PLANS[p].maxRadiusKm} km, {PLANS[p].maxShops} shops
+              </option>
+            ))}
+          </select>
+          <span className="text-[var(--muted)]">Demo setting: there is no payment.</span>
+        </label>
+        <label className="grid gap-1 text-sm">
           <span className="font-semibold">
             Radius: <output>{radius}</output> km
           </span>
           <input
             type="range"
             min={config.min_radius_km}
-            max={Math.min(config.max_radius_km, 10)}
+            max={maxRadius}
             step={0.5}
             value={radius}
             onChange={(e) => setRadius(Number(e.target.value))}

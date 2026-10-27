@@ -1,7 +1,7 @@
 import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
-import type { AttemptView, CallStatus, ResultState, SearchView } from './api'
+import type { AttemptView, CallStatus, NearbyBusiness, ResultState, SearchView } from './api'
 import { MapView } from './components/MapView'
 import { ResultsMap } from './components/ResultsMap'
 import { destinationPoint, distanceKm } from './geo'
@@ -116,7 +116,7 @@ const search = (over: Partial<SearchView> = {}): SearchView => ({
   completed_at: null,
   deadline_at: null,
   counts: { planned: 2, pending: 0, in_call: 0, answered: 0, no_answer: 0, failed: 0, cancelled: 0 },
-  attempts: [attempt('North Shop', 'RINGING', 0, 1), attempt('East Shop', 'COMPLETED', 90, 2)],
+  attempts: [attempt('North Shop', 'RINGING', 0, 1), attempt('East Shop', 'COMPLETED', 90, 2, 'REPORTED_AVAILABLE')],
   error: null,
   radius_km: 3,
   center_lat: 12.9716,
@@ -128,8 +128,8 @@ describe('ResultsMap', () => {
   it('shows the map first, with each shop as text, and says where the data comes from', () => {
     render(<ResultsMap search={search()} />)
     expect(screen.getByRole('tab', { name: 'Map', selected: true })).toBeInTheDocument()
-    expect(screen.getByText('North Shop · Ringing')).toBeInTheDocument()
-    expect(screen.getByText('East Shop · Done')).toBeInTheDocument()
+    expect(screen.getByText('North Shop · Calling…')).toBeInTheDocument()
+    expect(screen.getByText('East Shop · Said yes')).toBeInTheDocument()
     expect(screen.getByText(/Map data from OpenStreetMap contributors/)).toBeInTheDocument()
   })
 
@@ -147,7 +147,27 @@ describe('ResultsMap', () => {
   it('labels a skipped shop "Not called"', () => {
     const skipped = { ...attempt('Skipped', 'CANCELLED', 180, 1), result_state: 'NOT_CALLED_STOP_RULE' as const }
     render(<ResultsMap search={search({ attempts: [skipped] })} />)
-    expect(screen.getByText('Skipped · Not called')).toBeInTheDocument()
+    expect(screen.getByText('Skipped · Not called (enough answers)')).toBeInTheDocument()
+  })
+
+  it('adds nearby shops that have not joined, and never calls them', () => {
+    const nearby: NearbyBusiness[] = [
+      { id: 'n1', name: 'Corner Chemist', kind: 'REAL_BUSINESS', participation_status: 'INVITED', contactable: false, distance_km: 1.5, bearing_deg: 200, address: null, source: 'osm' },
+    ]
+    render(<ResultsMap search={search()} nearby={nearby} />)
+    expect(screen.getByText('Corner Chemist · Not joined yet (never called)')).toBeInTheDocument()
+    expect(screen.getByText(/Sonar only calls shops that joined themselves/)).toBeInTheDocument()
+  })
+
+  it('shows a legend with counts that hides and shows each kind of shop', async () => {
+    const user = userEvent.setup()
+    render(<ResultsMap search={search()} />)
+    const yes = screen.getByRole('button', { name: /Said yes: 1/ })
+    expect(yes).toHaveAttribute('aria-pressed', 'true')
+    await user.click(yes)
+    expect(yes).toHaveAttribute('aria-pressed', 'false')
+    expect(screen.queryByText('East Shop · Said yes')).not.toBeInTheDocument()
+    expect(screen.getByText('East Shop, 2 km: Said yes')).toBeInTheDocument() // list keeps everyone
   })
 
   it('draws nothing without a centre, a radius or any positioned shop', () => {

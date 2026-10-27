@@ -99,6 +99,7 @@ export interface SearchView {
   search_id: string
   status: SearchStatus
   demo_mode: boolean
+  category?: string | null
   mode?: SearchMode | null
   radius_km?: number | null
   center_lat?: number | null
@@ -165,6 +166,34 @@ export interface PublicConfig {
   features?: Record<string, boolean>
 }
 
+export type PlanTier = 'FREE' | 'PLUS' | 'PRO'
+
+/** Demo setting, not billing (D-060). Mirrors backend/app/services/plans.py. */
+export const PLANS: Record<PlanTier, { name: string; maxRadiusKm: number; maxShops: number }> = {
+  FREE: { name: 'Free', maxRadiusKm: 3, maxShops: 5 },
+  PLUS: { name: 'Plus', maxRadiusKm: 6, maxShops: 8 },
+  PRO: { name: 'Pro', maxRadiusKm: 10, maxShops: 10 },
+}
+
+export type ParticipationStatus = 'INVITED' | 'CONSENTED' | 'TEST_LINE' | 'DECLINED' | 'OPTED_OUT'
+
+export interface NearbyBusiness {
+  id: string
+  name: string
+  kind: BusinessKind
+  participation_status: ParticipationStatus
+  contactable: boolean
+  distance_km: number
+  bearing_deg: number
+  address: string | null
+  source: string
+}
+
+export interface NearbyView {
+  businesses: NearbyBusiness[]
+  attribution: string | null
+}
+
 export interface TickerLine {
   speaker: string
   text: string
@@ -194,6 +223,8 @@ export interface SearchRequest {
   demo_mode: boolean
   /** FAST stops once enough shops confirm; THOROUGH ("ask everyone") calls them all. */
   mode?: SearchMode
+  /** demo setting that bounds radius and shops (D-060) */
+  plan?: PlanTier
 }
 
 export class ApiError extends Error {
@@ -242,6 +273,15 @@ export const api = {
   getSearch: (id: string) => request<SearchView>(`/api/searches/${id}`),
   getResults: (id: string) => request<ResultsView>(`/api/searches/${id}/results`),
   getLive: (id: string) => request<LiveView>(`/api/searches/${id}/live`),
+  nearby: (category: string, lat: number, lng: number, radiusKm: number) =>
+    request<NearbyView>(
+      `/api/businesses/nearby?${new URLSearchParams({
+        category,
+        lat: String(lat),
+        lng: String(lng),
+        radius_km: String(radiusKm),
+      })}`,
+    ),
   cancel: (id: string, accessKey: string) =>
     request<{ status: SearchStatus }>(`/api/searches/${id}/cancel`, {
       method: 'POST',

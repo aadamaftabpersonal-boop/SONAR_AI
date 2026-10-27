@@ -50,6 +50,20 @@ describe('SearchForm', () => {
     expect(request.location).toMatchObject({ lat: 12.9716, lng: 77.5946 })
   })
 
+  it('sends the plan and caps the radius at the plan limit (demo setting, no payment)', async () => {
+    const { onSubmit, user } = setup()
+    expect(screen.getByText('Demo setting: there is no payment.')).toBeInTheDocument()
+    const slider = screen.getByLabelText('Search radius in kilometres')
+    expect(slider).toHaveAttribute('max', '3')
+    await user.selectOptions(screen.getByRole('combobox', { name: /^Plan/ }), 'PRO')
+    expect(slider).toHaveAttribute('max', '10')
+    await user.type(screen.getByLabelText('What are you looking for?'), 'X')
+    await user.type(screen.getByLabelText(/strength/i), '5')
+    await user.type(screen.getByLabelText('Access key'), 'k')
+    await user.click(screen.getByRole('button', { name: /search by phone/i }))
+    expect(onSubmit.mock.calls[0][0].plan).toBe('PRO')
+  })
+
   it('lets the user turn demo mode off, which is a visible, deliberate choice', async () => {
     const { onSubmit, user } = setup()
     await user.type(screen.getByLabelText('What are you looking for?'), 'X')

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ApiError, api, isTerminalSearch } from './api'
-import type { ClarificationQuestion, PublicConfig, SearchRequest } from './api'
+import type { ClarificationQuestion, NearbyBusiness, PublicConfig, SearchRequest } from './api'
 import { Progress } from './components/Progress'
 import { Results } from './components/Results'
 import { ResultsMap } from './components/ResultsMap'
@@ -71,6 +71,31 @@ export default function App() {
   }
 
   const running = !!search && !isTerminalSearch(search.status)
+
+  // Shops near the search that Sonar knows about, joined or not, for the map. Read once per
+  // search; if the endpoint is missing or fails, the map simply shows the called shops.
+  const [nearby, setNearby] = useState<NearbyBusiness[]>([])
+  const nearbyKey =
+    search?.category && search.center_lat != null && search.center_lng != null && search.radius_km
+      ? `${search.search_id}|${search.category}|${search.center_lat}|${search.center_lng}|${search.radius_km}`
+      : null
+  useEffect(() => {
+    if (!nearbyKey || !search?.category) {
+      setNearby([])
+      return
+    }
+    let stale = false
+    api
+      .nearby(search.category, search.center_lat as number, search.center_lng as number, search.radius_km as number)
+      .then(
+        (v) => !stale && setNearby(v.businesses),
+        () => !stale && setNearby([]),
+      )
+    return () => {
+      stale = true
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nearbyKey])
 
   return (
     <div className="mx-auto grid max-w-3xl gap-5 px-4 py-6 sm:py-10">
@@ -179,7 +204,7 @@ export default function App() {
           {config?.features?.live_ticker && searchId && (
             <Ticker searchId={searchId} running={running} />
           )}
-          <ResultsMap search={search} />
+          <ResultsMap search={search} nearby={nearby} />
           {results && (
             <Results
               results={results.results}
