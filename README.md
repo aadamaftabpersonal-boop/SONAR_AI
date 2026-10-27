@@ -193,6 +193,8 @@ that matter most:
 | `BUSINESS_DAILY_CALL_CAP`, `BUSINESS_COOLDOWN_MINUTES` | Per-shop limits | 4 per day, 15 minutes |
 | `SEARCH_DEADLINE_SECONDS` | Unfinished calls time out after this | 300 |
 | `FEATURE_STOP_RULE`, `FEATURE_HISTORY`, `FEATURE_DIGEST` | Optional features | off |
+| `FEATURE_CACHE_REUSE` | Show a shop's fresh earlier live answer to the same question instead of calling again (labelled "Earlier call") | off |
+| `FEATURE_LIVE_TICKER` | Show the last lines of calls in progress, for team test lines and simulated calls only | off |
 | `FRONTEND_DIST` | Serve the built web app from the API | unset |
 | `VITE_TILE_URL` | Map tile server (public, no secrets) | OpenStreetMap |
 

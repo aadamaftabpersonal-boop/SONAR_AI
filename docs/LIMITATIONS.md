@@ -91,8 +91,19 @@ Last checked 2026-10-27.
   team's Indian phones; pickup by real shops is untested.
 - Pickup rate, answer accuracy, the time a search takes, and the saving from stopping early.
 
+## Built, with limits
+
+- **Live ticker** (`FEATURE_LIVE_TICKER`): on simulated calls it replays the script line by line. On
+  real calls it shows whatever transcript Bolna returns while the call is in progress; whether Bolna
+  returns any text before the call ends is not yet known (spike S-13). If it does not, the panel
+  says "No live text yet" rather than inventing anything. A real shop's words are never shown live.
+- **Reuse of recent answers** (`FEATURE_CACHE_REUSE`): a shop's answer from the last hour (price
+  within 24 hours) to the same question is shown as "Earlier call, HH:MM (not called again)". The
+  shop may have sold out since; the time is always shown.
+- **Browser end-to-end test** (`e2e/`): demo mode only; it has not been run yet.
+
 ## Not built
 
-Inbound shop line, live transcript and audio, voice input, question compiler, standing watches,
-a developer API wrapper, reuse of recent answers, an automated browser test, and the sponsor
-benchmark. See `README.md` for the build state.
+Inbound shop line, audio replay, voice input, race clock, evidence replay with context, question
+compiler, standing watches, a developer API wrapper, and the sponsor benchmark (deferred: the team
+plans to keep Wave 2 to the ticker). See `README.md` for the build state.
