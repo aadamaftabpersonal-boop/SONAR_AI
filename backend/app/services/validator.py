@@ -138,6 +138,43 @@ def _has_cue(text: str, cues: tuple[str, ...]) -> bool:
     return any(normalize(c) in n for c in cues)
 
 
+_SHOP_SPEAKERS = ("user:", "shop:")
+
+
+def _shop_turns(transcript: str) -> list[str]:
+    """The business's own lines. Bolna labels them `user:`, the simulator `shop:`."""
+    turns = []
+    for line in transcript.splitlines():
+        stripped = line.strip()
+        low = stripped.lower()
+        for label in _SHOP_SPEAKERS:
+            if low.startswith(label):
+                text = stripped[len(label) :].strip()
+                if text:
+                    turns.append(text)
+                break
+    return turns
+
+
+def _reaffirmed_at_the_end(transcript: str) -> bool:
+    """True if the shop's last line is a plain "we have it" with no negative words.
+
+    Catches a call where speech-to-text mangled a word, the agent noted "a different one", and
+    the shop then corrected it ("yes we have it"). An exact-match "no" is then not trustworthy.
+    """
+    turns = _shop_turns(transcript)
+    if not turns:
+        return False
+    last = turns[-1]
+    return _has_cue(last, _POSITIVE_CUES) and not _has_cue(last, _NEGATIVE_CUES)
+
+
+def _said_by_shop(text: str, transcript: str) -> bool:
+    turns = _shop_turns(transcript)
+    haystack = normalize(" ".join(turns)) if turns else normalize(transcript)
+    return bool(normalize(text)) and normalize(text) in haystack
+
+
 def _stated_rupees(stated: Any) -> bool:
     if not isinstance(stated, str):
         return False
@@ -235,6 +272,14 @@ def validate(
                 flags.append("CONTRADICTORY")
             elif exact_raw == "yes":  # V4: exact match must be confirmed by the business
                 availability, exact = Availability.REPORTED_AVAILABLE, ExactMatch.CONFIRMED
+            elif exact_raw == "no" and _reaffirmed_at_the_end(transcript):
+                # V9: "not exact" but the shop's last word was "yes, we have it" (first live
+                # call, 2026-10-25: "milligrams" heard as "millie gills"). Show neither claim.
+                flags += ["CONTRADICTORY", "SHOP_REAFFIRMED_AT_END"]
+            elif exact_raw == "no" and alternative and not _said_by_shop(alternative, transcript):
+                # V3 for alternatives: an alternative is shown only in the shop's own words
+                flags += ["ALTERNATIVE_NOT_IN_TRANSCRIPT", "EXACT_MATCH_NOT_CONFIRMED"]
+                exact = ExactMatch.NOT_CONFIRMED
             elif exact_raw == "no" and alternative:
                 availability, exact = Availability.ALTERNATIVE_ONLY, ExactMatch.NOT_CONFIRMED
             elif exact_raw == "no":

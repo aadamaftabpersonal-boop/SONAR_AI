@@ -1,7 +1,8 @@
 # Metrics
 
-**Status: not measured.** No live call has been placed, so there is nothing to report. Do not put a
-number in this file by hand. Generate it:
+**Status: not measured.** Four test calls were placed on 2026-10-25, but with the spike scripts,
+outside Sonar, so they are not in the database and the report has nothing to count. Four role-played
+calls would not be a sample anyway. Do not put a number in this file by hand. Generate it:
 
 ```powershell
 backend\.venv\Scripts\python scripts\metrics_report.py --write docs\METRICS.md

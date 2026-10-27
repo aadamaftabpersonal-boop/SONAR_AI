@@ -242,7 +242,9 @@ def test_unsure_and_declined_map_directly():
     ],
 )
 def test_v4_exact_match_gates_available(exact, alt, expected):
-    assert check(ex(exact_match_confirmed=exact, alternative_offered=alt)).availability is expected
+    t = TRANSCRIPT + "shop: Not exactly, but we keep an other brand.\n"
+    e = ex(exact_match_confirmed=exact, alternative_offered=alt)
+    assert check(e, transcript=t).availability is expected
 
 
 def test_v5_attributes_are_not_confirmed_without_exact_confirmation():
@@ -418,3 +420,84 @@ def test_number_in_transcript_handles_commas_and_decimals():
     assert number_in_transcript(Decimal("1200"), "it costs 1,200 rupees")
     assert number_in_transcript(Decimal("42.5"), "forty two and a half? no, 42.5 rupees")
     assert not number_in_transcript(Decimal("42"), "it costs 142")
+
+
+# --- regression: first live call, 2026-10-25 (team phone role-playing a shop) ----------------
+
+# Speech-to-text heard "500 milligrams" as "millie gills"; the agent noted "a different one",
+# the shop corrected it, and the call ended on "yes we have it". No price was captured.
+MILLIE_GILLS = (
+    "assistant: Hello, this is an automated assistant calling for Sonar. I'm checking a quick "
+    "fact for a customer. Is now an okay moment for one or two questions? This call is "
+    "transcribed to record your answer.\n"
+    "user:  yes yes\n"
+    "assistant:  Do you currently have Paracetamol strength 500 mg available?\n"
+    "user:  yes we do\n"
+    "assistant:  Just to be sure, is that exactly Paracetamol strength 500 mg?\n"
+    "user:  millie gills\n"
+    "assistant:  Okay, that's a different one, I'll note it as different. Could you tell me the "
+    "price for that one?\n"
+    "user:  no what did you just say right now\n"
+    'assistant:  I said, "Could you tell me the price for that one?" Thank you.\n'
+    "user:  no regarding the paracetamol\n"
+    'assistant:  You mentioned "millie gills" for the Paracetamol. I noted that as a different '
+    "one, not exactly Paracetamol strength 500 mg. Thank you.\n"
+    "user:  it should be milligrams right\n"
+    'assistant:  Yes, "milligrams" is the correct term for the strength measurement. Thank you.\n'
+    "user:  yes we have it\n"
+    "assistant: Thank you, that's all I needed. I haven't committed to anything on anyone's "
+    "behalf. Goodbye.\n"
+)
+
+
+@pytest.mark.parametrize(
+    ("exact", "alt"),
+    [("no", "millie gills"), ("no", None), ("unsure", None), (None, None)],
+)
+def test_misheard_unit_then_reaffirmed_is_uncertain_never_a_claim(exact, alt):
+    e = ex(
+        exact_match_confirmed=exact,
+        alternative_offered=alt,
+        price_amount=None,
+        price_currency_stated=None,
+        supporting_quote="yes we do",
+    )
+    r = check(e, transcript=MILLIE_GILLS)
+    assert r.create_response
+    assert r.availability is A.UNCERTAIN
+    assert r.alternative_note is None and r.price_amount is None
+    assert r.matched_attributes == {"strength": "UNKNOWN"}
+
+
+def test_misheard_unit_flags_the_contradiction():
+    e = ex(exact_match_confirmed="no", alternative_offered="millie gills", price_amount=None)
+    r = check(e | {"supporting_quote": "yes we do"}, transcript=MILLIE_GILLS)
+    assert "CONTRADICTORY" in r.validation_flags
+    assert "SHOP_REAFFIRMED_AT_END" in r.validation_flags
+
+
+def test_shop_turns_read_bolna_user_label():
+    r = check(ex(supporting_quote="yes we do", price_amount=None), transcript=MILLIE_GILLS)
+    # "yes" to availability and "yes" to exact match would be a confirmed answer
+    assert r.availability is A.REPORTED_AVAILABLE
+
+
+def test_alternative_must_be_in_the_shops_own_words():
+    t = "shop: Yes, we have it in stock.\nshop: Not exactly that one though.\n"
+    e = ex(exact_match_confirmed="no", alternative_offered="Crocin 650", price_amount=None)
+    r = check(e, transcript=t)
+    assert r.availability is A.UNCERTAIN and r.alternative_note is None
+    assert "ALTERNATIVE_NOT_IN_TRANSCRIPT" in r.validation_flags
+
+
+def test_alternative_spoken_only_by_the_agent_is_not_the_shops():
+    t = "shop: Yes, we have it in stock.\nagent: Is it Crocin 650 then?\nshop: Not exactly that.\n"
+    e = ex(exact_match_confirmed="no", alternative_offered="Crocin 650", price_amount=None)
+    assert check(e, transcript=t).availability is A.UNCERTAIN
+
+
+def test_a_real_alternative_still_shows():
+    t = "shop: Yes, we have it in stock.\nshop: Not exactly, we only keep Crocin 650.\n"
+    e = ex(exact_match_confirmed="no", alternative_offered="Crocin 650", price_amount=None)
+    r = check(e, transcript=t)
+    assert r.availability is A.ALTERNATIVE_ONLY and r.alternative_note == "Crocin 650"

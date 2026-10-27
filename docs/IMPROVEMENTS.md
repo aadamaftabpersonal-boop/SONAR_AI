@@ -33,8 +33,10 @@ Legend: **Built** (in the repo), **Partly**, **Not built**. Effort: S (hours), M
 | A5 | Compare a stronger model on the same script | Not built | S | Fewer misread answers per 12 calls, and the cost difference |
 | A6 | Re-test voicemail detection with a longer wait; keep `call_outcome` as the backstop | Not built | S | No false hang-ups across 10 calls |
 | A7 | Yes/no phrasing for every question, one question per turn | Partly | S | Shorter calls, fewer chats |
-| A8 | **12-call acceptance script** with fixed answers (yes, no, different brand, noisy, Hindi, mumbled, opt-out, advice question, silence, voicemail) | Not built | S | Counts of correct / Uncertain / wrong recorded in `METRICS.md` |
+| A8 | **12-call acceptance script** with fixed answers (yes, no, different brand, noisy, Hindi, mumbled, opt-out, advice question, silence, voicemail) | Script written (`docs/agent/ACCEPTANCE_CALLS.md`), not run | S | Counts of correct / Uncertain / wrong recorded in `METRICS.md` |
 | A9 | Prompt versioning: `prompt_v2.md` for any change, tests keep it honest | Partly | S | `test_agent_prompt.py` passes |
+| A10 | Indian-English voice (lower pitch, slower) and a transcriber comparison: Sarvam vs Deepgram, both with keywords (D-056) | Not run; steps in `docs/agent/VOICE_AND_TRANSCRIBER.md` | S | Fewer misheard words on the acceptance calls, as x of N |
+| A11 | Validator: an exact-match "no" followed by the shop reaffirming is Uncertain; alternatives must be in the shop's own words (D-055) | **Built**, regression test from the 2026-10-25 call | S | `test_validator.py` |
 
 Rule: the agent is an unreliable witness. We never make it smarter by letting it guess; we make it
 fail safe (Uncertain) and show the evidence.

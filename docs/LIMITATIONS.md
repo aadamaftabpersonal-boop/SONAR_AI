@@ -5,15 +5,37 @@ file. Last updated with the build state described in `README.md`.
 
 ## What is proven, and what is not
 
+Last checked 2026-10-27.
+
 | Claim | Status |
 |---|---|
 | The pipeline (search, consent-gated calls, validation, results) works | Proven on the **simulator** and on **mocked** Bolna HTTP. |
-| It works with the real Bolna API | **Not proven.** No real call has been placed. The Bolna field names are taken from documentation, not from captured responses. |
+| Bolna can place the call and return a usable record | **Shown on 4 test calls** to team phones (2026-10-25), placed with the spike scripts: the call connects, the AI disclosure is spoken, the item is filled in, and the execution record carries a transcript and structured answers. Four role-played calls are not a sample. |
+| The full live path through Sonar works | **Not proven.** No live call has yet gone from a search in Sonar, through the webhook, to a result on screen (milestone M1). Webhooks have not been received from Bolna at all (spikes S-3, S-5). |
 | Answers are accurate | **Not measured.** No answer has been checked against reality. The tool for it exists (`scripts/ground_truth.py`); the number does not. |
+| Speech-to-text understands shopkeepers | **Not shown.** On a clear English test call it heard "milligrams" as "millie gills". An Indian-English transcriber with keywords is planned and untested. |
 | Shopkeepers will agree to take these calls | **Not tested.** No business has been asked. |
 | Businesses will pay | **Not tested.** See `docs/BUSINESS_CASE.md`: every hypothesis is "not run". |
 | The early stop saves calls | Shown on the simulator. **No measured saving on real calls.** |
 | Hindi or Kannada works for shopkeepers | **Not tested** (spike S-8). |
+| Cost per call | **Not known.** Bolna reports a cost field (3.0 per started 30 s on our calls), but its unit is not confirmed. |
+
+## What the first live calls showed
+
+- **The speech-to-text can mishear units and product words.** One call turned "500 milligrams" into
+  "millie gills". The agent then treated the answer as a different product and never got a price.
+  What changed: units are spoken in full, the agent asks once more when an answer is unclear, and
+  the validator now records such a call as **Uncertain**, never as "different" or "unavailable".
+  What is still open: transcriber keywords, an Indian-English transcriber and voice, and a re-test.
+- **The agent can drift off-script** (it explained a word instead of re-asking). A guard was added to
+  the prompt; whether it holds is untested.
+- **Voicemail detection hung up on a real person** who was listening quietly (two calls, about 10 s
+  in). It is off for tests. With it off, voicemail is caught only by the extraction (`call_outcome`),
+  which is a model's judgement.
+- **The trial plan calls verified numbers only.** Calling any real shop needs a paid plan or
+  per-number verification.
+- **The agent configuration lives in Bolna's dashboard,** not in this repository. The prompt in
+  `docs/agent/` must be pasted in by hand; nothing checks that the two match.
 
 ## How the product behaves, by design
 
@@ -58,14 +80,15 @@ file. Last updated with the build state described in `README.md`.
   with the access key is out of scope.
 - **Legal position on automated calls to businesses is unresolved** (B-05). We have no legal
   advice. The consent-only policy and the AI disclosure are choices, not a compliance claim.
-- **Recording and retention** by the voice provider are unknown (spike S-9). Until confirmed, do not
-  tell businesses a call is not recorded.
+- **Recording and retention** by the voice provider are not settled (spike S-9). Our test calls
+  produced a recording, so assume calls are recorded: never tell a business otherwise.
 
 ## Things that will need real data to settle
 
-- The extraction shape, status strings and webhook fields (spike S-5, S-6, S-7).
-- Cost per call and what Bolna's `total_cost` means.
-- Whether the default caller number works for Indian recipients, and whether calls are marked spam.
+- Webhook fields, status order and redelivery (spike S-5). The extraction shape is now known (S-7).
+- What unit Bolna's `total_cost` is in.
+- What caller number shops see, and whether calls are marked spam. The default number reached the
+  team's Indian phones; pickup by real shops is untested.
 - Pickup rate, answer accuracy, the time a search takes, and the saving from stopping early.
 
 ## Not built

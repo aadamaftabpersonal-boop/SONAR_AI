@@ -30,7 +30,7 @@ on the day, skip its beat.
 | 9 | "I can also have it read the results back." | **Read results aloud** (only if the browser supports it). |
 | 10 | Close with what is real and what is not. | Say: "This is a working pipeline. Real calls to real shops are the next test, and we have not claimed any accuracy figure we have not measured." |
 
-## Optional: a live test-line call (only once the Bolna key works)
+## Optional: a live test-line call (only after milestone M1 has passed)
 
 1. Hand a judge a team test phone and tell them to play a difficult shopkeeper: hedge, interrupt,
    switch language.

@@ -4,13 +4,16 @@ Sonar's baseline is **Bolna only** (Bible D-023). This file records what we know
 sponsors so we never claim an integration we did not build. Status uses the Bible's vocabulary
 (section 0.1). **Nothing here has been verified by running anything.**
 
-| Sponsor | Possible role (only through Bolna's configuration) | Status | What we do not know |
+| Sponsor | Possible role (only through Bolna's configuration) | Status (2026-10-27) | What we do not know |
 |---|---|---|---|
-| Bolna | Voice agent platform: calls, webhooks, extraction | `VERIFIED_NOT_IMPLEMENTED` against live Bolna. The provider is written and tested over mocked HTTP; it has not touched the real service. | Real payload shapes, cost, number rules, retention (spikes S-4 to S-10) |
-| Sarvam | Indic speech or language option inside the agent configuration, if spike S-8 shows the default is weak on Hindi or Kannada | `PROPOSED` | Whether Bolna exposes it for our plan; whether credits are available |
-| Deepgram | Alternative speech-to-text inside the agent configuration | `PROPOSED` | Same |
-| Cartesia | Alternative voice inside the agent configuration | `PROPOSED` | Same |
-| Plivo, Exotel | Telephony route connected through Bolna's supported-provider setup | `PROPOSED`, `BLOCKED` until an India-registered business and KYC are confirmed (B-07) | Whether the team has such an entity |
+| Bolna | Voice agent platform: calls, execution records, extraction | Calls and execution pulls **work on 4 test calls** to team phones (spike scripts, 2026-10-25), and the parser is tested against the captured extraction shape. Sonar's own live path (search to result, with webhooks) has **not** run yet (M1). | Webhook behaviour (S-5), cost unit, retention (S-9), caller ID |
+| Sarvam | Indian-English voice (Bulbul) and Indian-English or Hindi speech-to-text (Saaras), chosen in the agent's settings | `PROPOSED`, **planned trial** (D-056). Credits being requested | Whether it transcribes shopkeepers better than the current setup; whether our own key can be used in Bolna |
+| Deepgram | Speech-to-text, the comparison arm for Sarvam (with keywords) | `PROPOSED`, **planned trial** (D-056). Credits being requested. It may already be the default transcriber: check the agent's settings | Which transcriber the agent uses today |
+| Cartesia | Alternative voice | `PROPOSED`, backup only: tried only if no Sarvam voice is clear enough | Indian-English voice range |
+| Plivo, Exotel | Telephony route connected through Bolna's supported-provider setup | `BLOCKED` until an India-registered business and KYC are confirmed (B-07). Not requested for the buildathon | Whether the team has such an entity |
+
+A sponsor moves from `PROPOSED` only after a recorded call through it, logged in
+`docs/FEASIBILITY.md` (S-8) with the date.
 
 ## Rules for mentioning a sponsor
 
@@ -23,5 +26,5 @@ sponsors so we never claim an integration we did not build. Status uses the Bibl
 
 - [ ] Ask the organisers which partner credits are available to participants (the credits form
       mentions partner credits).
-- [ ] After spike S-8, decide whether any partner is actually needed. If not, say so and keep the
-      baseline Bolna-only.
+- [ ] Run the comparison in `docs/agent/VOICE_AND_TRANSCRIBER.md`, then keep one transcriber and
+      one voice. If neither partner beats the current setup, say so and keep the baseline.
