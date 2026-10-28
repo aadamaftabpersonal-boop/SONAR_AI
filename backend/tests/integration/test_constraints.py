@@ -123,11 +123,18 @@ def test_second_response_for_one_attempt_rejected(session):
         session.commit()
 
 
-def test_response_origin_cannot_be_cached_in_db(session):
-    """CACHED_LIVE is derived at read time, never stored (Bible 19.2 notes)."""
+def test_response_origin_accepts_cached_live(session):
+    """T7.4 (D-057) stores the reused copy as CACHED_LIVE; migration 0004 allows it."""
     job, biz = make_job(session), make_business(session)
     att = make_attempt(session, job, biz)
     session.add(_response(att, job, biz, data_origin="CACHED_LIVE"))
+    session.commit()
+
+
+def test_response_origin_enum_enforced(session):
+    job, biz = make_job(session), make_business(session)
+    att = make_attempt(session, job, biz)
+    session.add(_response(att, job, biz, data_origin="GUESSED"))
     with pytest.raises(IntegrityError):
         session.commit()
 

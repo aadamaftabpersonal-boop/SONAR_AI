@@ -235,7 +235,11 @@ class Orchestrator:
     async def drain(self) -> None:
         """Wait for in-flight simulated calls (used by tests and graceful shutdown)."""
         while self._tasks:
-            await asyncio.gather(*list(self._tasks), return_exceptions=True)
+            batch = list(self._tasks)
+            # Drop them here: gather() over already-finished tasks returns without yielding, so
+            # the add_done_callback that normally discards them would never get to run.
+            self._tasks.difference_update(batch)
+            await asyncio.gather(*batch, return_exceptions=True)
 
     # --- reconciler (lost webhooks, restarts) -----------------------------------------------
 

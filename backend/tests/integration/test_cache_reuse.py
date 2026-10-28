@@ -162,7 +162,8 @@ def test_an_opted_out_shop_is_never_shown_from_cache(make_client, session):
 def test_a_newer_unclear_answer_blocks_an_older_clear_one(make_client, session):
     s = shop(session)
     earlier_answer(session, s, minutes_ago=40)
-    earlier_answer(session, s, minutes_ago=10, availability="UNCERTAIN", exact_match="UNKNOWN")
+    # Outside business_cooldown_minutes, so the shop is still callable; inside the availability TTL.
+    earlier_answer(session, s, minutes_ago=20, availability="UNCERTAIN", exact_match="UNKNOWN")
     created = search(make_client(feature_cache_reuse=True))
     [attempt] = attempts_for(session, created["search_id"])
     assert attempt.provider == "bolna"
