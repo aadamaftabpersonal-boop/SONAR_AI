@@ -28,17 +28,22 @@ class PastAnswer:
     query: dict[str, Any]  # the ParsedQuery of the search that produced the answer
 
 
-def _key(query: dict[str, Any]) -> tuple[str, str, tuple[tuple[str, str], ...]]:
+def _norm(value: Any) -> str:
+    return " ".join(str(value or "").split()).casefold()
+
+
+def _key(query: dict[str, Any]) -> tuple:
     attrs = query.get("attributes") or {}
+    # custom questions (D-062) are part of the question: different questions never match
+    questions = tuple(
+        (_norm(q.get("text")), _norm(q.get("kind")), _norm(q.get("unit")))
+        for q in query.get("questions") or []
+    )
     return (
         str(query.get("category", "")).strip().casefold(),
-        " ".join(str(query.get("item_name", "")).split()).casefold(),
-        tuple(
-            sorted(
-                (str(k).strip().casefold(), " ".join(str(v).split()).casefold())
-                for k, v in attrs.items()
-            )
-        ),
+        _norm(query.get("item_name")),
+        tuple(sorted((str(k).strip().casefold(), _norm(v)) for k, v in attrs.items())),
+        questions,
     )
 
 
@@ -66,6 +71,8 @@ def reusable(
     age = now - past.answer_timestamp
     if age < timedelta(0) or age > ttl_availability:
         return False  # a future timestamp is suspicious; an old one is stale
+    if query.get("questions"):
+        return False  # custom answers are not reused yet: wanted answers can differ per search
     if past.availability == "REPORTED_AVAILABLE":
         if past.exact_match != "CONFIRMED":
             return False

@@ -480,8 +480,8 @@ def test_field_names_live_in_one_block():
 
 
 def test_every_extraction_the_validator_reads_is_known():
-    from app.services import validator
+    from app.services import general, validator
 
-    source = open(validator.__file__, encoding="utf-8").read()
+    source = "".join(open(m.__file__, encoding="utf-8").read() for m in (validator, general))
     for name in bolna.KNOWN_EXTRACTIONS - {"call_outcome"}:
         assert name in source or name == "open_now", name

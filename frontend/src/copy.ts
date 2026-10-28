@@ -1,7 +1,7 @@
 // All user-facing wording for states lives here so it can be reviewed in one place.
 // Rule (NFR-09): only an explicit, validated "not available" answer may read as unavailable.
 // Silence, failure, refusal, uncertainty and skipped calls never do.
-import type { CallStatus, ResultState } from './api'
+import type { AnswerView, CallStatus, ResultState, ResultView } from './api'
 
 export const NOT_UNAVAILABLE = 'This does not mean the item is unavailable.'
 
@@ -67,10 +67,40 @@ export const FLAG_TEXT: Record<string, string> = {
   OPT_OUT_REQUESTED: 'The business asked not to be called again. Sonar will not call them again.',
   SHOP_REAFFIRMED_AT_END:
     'The call noted a different item, but the shop ended by saying it has it, so Sonar did not pick a side.',
+  NOT_ANSWERED: 'The shop did not answer this question.',
+  NOT_A_YES_OR_NO: 'The answer was not a clear yes or no, so Sonar did not pick one.',
+  NOT_A_NUMBER: 'The answer was not a number, so it is not shown.',
+  NUMBER_NOT_HEARD: "The number was not heard in the shop's own words, so it was dropped.",
+  ANSWERS_UNREADABLE: 'The answers could not be read from the call, so none are shown.',
   ALTERNATIVE_NOT_IN_TRANSCRIPT:
     "The alternative was not in the shop's own words in the call, so it is not shown.",
 }
 
 export function flagText(flag: string): string {
   return FLAG_TEXT[flag] ?? flag.toLowerCase().replaceAll('_', ' ')
+}
+
+// Custom-question searches (D-062): labels are about what the user asked, never about stock.
+export const NOT_A_NO = 'This does not mean the answer is no.'
+
+export function customResultLabel(r: Pick<ResultView, 'result_state' | 'answers'>): string {
+  const hasCriteria = (r.answers ?? []).some((a) => a.meets !== null)
+  switch (r.result_state) {
+    case 'REPORTED_AVAILABLE':
+      return hasCriteria ? 'Meets what you asked' : 'Answered'
+    case 'REPORTED_UNAVAILABLE':
+      return "Doesn't meet what you asked"
+    case 'UNCERTAIN':
+      return 'Unclear answer'
+    default:
+      return RESULT_LABEL[r.result_state]
+  }
+}
+
+/** One answer as plain text. A missing or unchecked answer never reads as "no". */
+export function answerText(a: AnswerView): string {
+  if (a.value === null || !a.validated) return 'Not clearly answered'
+  if (a.kind === 'yes_no') return a.value === true ? 'Yes' : 'No'
+  if (a.kind === 'number') return a.unit ? `${a.value} ${a.unit}` : String(a.value)
+  return String(a.value)
 }

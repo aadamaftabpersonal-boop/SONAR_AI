@@ -109,6 +109,11 @@ Last checked 2026-10-27.
   someone else at the shop could be used by them, and the public form relies on a teammate checking
   the number by hand before inviting. The page is in English only until a native speaker reviews a
   translation. The legal position on automated calls (B-05) is still unresolved.
+- **Custom questions** (`FEATURE_CUSTOM_QUESTIONS`, D-062): only tested on the simulator so far.
+  The general agent and its `answers_json` extraction have not made a live call yet. A free-text
+  answer is shown only as the shop's own quote. The voice agent reads the questions as written, so
+  awkward wording is asked awkwardly. Answers are not reused from earlier calls, and these searches
+  always call every shop, so they cost more calls than a stock check.
 - **Plans** (Free, Plus, Pro) are a demo setting: there is no payment and nothing stops a user from
   choosing Pro.
 

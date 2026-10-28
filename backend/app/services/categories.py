@@ -26,6 +26,7 @@ class CategoryConfig(BaseModel):
     price_max_plausible_inr: int = 100000
     blocked_terms: list[str] = Field(default_factory=list)
     osm_tags: list[str] = Field(default_factory=list)  # OpenStreetMap discovery (D-059)
+    business_noun: str = "business"  # how the general agent refers to the shop (D-062)
 
 
 class CategoryError(ValueError):

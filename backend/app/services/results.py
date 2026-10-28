@@ -16,6 +16,7 @@ from app.domain.enums import (
     VerificationStatus,
 )
 from app.domain.schemas import (
+    AnswerView,
     BusinessRef,
     Evidence,
     Reported,
@@ -128,7 +129,20 @@ def view_from_response(
         verification_status=VerificationStatus(response.verification_status),
         flags=list(response.validation_flags or []),
         note=NOTES.get(state),
+        answers=_answers(response),
+        rank_value=_float(getattr(response, "rank_value", None)),
     )
+
+
+def _float(value: Any) -> float | None:
+    return float(value) if value is not None else None
+
+
+def _answers(response: Any) -> list[AnswerView] | None:
+    raw = getattr(response, "answers", None)
+    if not raw:
+        return None
+    return [AnswerView.model_validate(a) for a in raw]
 
 
 def view_without_response(
@@ -144,8 +158,23 @@ def view_without_response(
     )
 
 
-def sort_results(items: Iterable[ResultView]) -> list[ResultView]:
+def sort_results(items: Iterable[ResultView], rank: str | None = None) -> list[ResultView]:
+    """`rank` ("lowest" or "highest") orders shops within a tier by the custom question the user
+    chose (D-062); otherwise by price as before."""
+
     def key(v: ResultView) -> tuple:
+        if rank:
+            value = v.rank_value
+            if value is not None and rank == "highest":
+                value = -value
+            distance = v.business.distance_km
+            # the user's own ordering comes before distance: "cheapest" means cheapest
+            return (
+                TIER[v.result_state],
+                value is None,
+                value if value is not None else 0.0,
+                distance if distance is not None else float("inf"),
+            )
         price = v.reported.price.amount if v.reported and v.reported.price else None
         return rank_key(v.result_state, v.business.distance_km, price)
 

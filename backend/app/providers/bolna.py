@@ -58,6 +58,7 @@ KNOWN_EXTRACTIONS = frozenset(
         "opt_out_requested",
         "call_outcome",
         "supporting_quote",
+        "answers_json",  # custom questions (D-062): one object with every answer and quote
     }
 )
 _VALUE_KEYS = ("objective", "subjective", "value", "answer")  # how a wrapped answer may appear

@@ -1,5 +1,13 @@
-import type { ResultView } from '../api'
-import { ANSWER_STATES, NOT_UNAVAILABLE, RESULT_LABEL, flagText } from '../copy'
+import type { AnswerView, ResultView } from '../api'
+import {
+  ANSWER_STATES,
+  NOT_A_NO,
+  NOT_UNAVAILABLE,
+  RESULT_LABEL,
+  answerText,
+  customResultLabel,
+  flagText,
+} from '../copy'
 import { clock, timeAgo, useNow } from '../time'
 import { ReadAloud } from './ReadAloud'
 
@@ -22,9 +30,48 @@ function priceText(r: ResultView): string | null {
   return price.note
 }
 
-function ResultCard({ r, now }: { r: ResultView; now: Date }) {
+function meetsChip(a: AnswerView) {
+  if (a.meets === true) return <span className="chip chip-good">Matches</span>
+  if (a.meets === false) return <span className="chip chip-bad">Does not match</span>
+  return null
+}
+
+/** The shop's answer to each of the user's own questions, with the shop's words (D-062). */
+function AnswersTable({ answers }: { answers: AnswerView[] }) {
+  return (
+    <table className="mt-3 w-full text-left text-sm" aria-label="Answers to your questions">
+      <thead className="text-[var(--muted)]">
+        <tr>
+          <th scope="col" className="py-1 pr-3 font-semibold">Your question</th>
+          <th scope="col" className="py-1 pr-3 font-semibold">Answer</th>
+        </tr>
+      </thead>
+      <tbody>
+        {answers.map((a) => (
+          <tr key={a.key} className="border-t border-[var(--line,#0001)] align-top">
+            <td className="py-2 pr-3">{a.question}</td>
+            <td className="py-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="font-semibold">{answerText(a)}</span>
+                {meetsChip(a)}
+              </div>
+              {a.quote && a.validated && (
+                // plain text only: React escapes it, and nothing here is ever rendered as HTML
+                <q className="mt-1 block text-[var(--muted)]">{a.quote}</q>
+              )}
+              {a.flag && <span className="mt-1 block text-[var(--warn)]">{flagText(a.flag)}</span>}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  )
+}
+
+function ResultCard({ r, now, custom }: { r: ResultView; now: Date; custom: boolean }) {
   const simulated = r.data_origin === 'SIMULATED'
-  const price = priceText(r)
+  const price = custom ? null : priceText(r)
+  const label = custom ? customResultLabel(r) : RESULT_LABEL[r.result_state]
   return (
     <li className="card result-card p-4" data-state={r.result_state}>
       <div className="flex flex-wrap items-start justify-between gap-2">
@@ -45,7 +92,7 @@ function ResultCard({ r, now }: { r: ResultView; now: Date }) {
           {r.answer_summary && <p className="mt-1 text-sm">{r.answer_summary}</p>}
           {r.note && <p className="mt-1 text-sm text-[var(--muted)]">{r.note}</p>}
         </div>
-        <span className={LABEL_CLASS[r.result_state] ?? 'chip'}>{RESULT_LABEL[r.result_state]}</span>
+        <span className={LABEL_CLASS[r.result_state] ?? 'chip'}>{label}</span>
       </div>
 
       <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-[var(--muted)]">
@@ -60,7 +107,9 @@ function ResultCard({ r, now }: { r: ResultView; now: Date }) {
         )}
       </div>
 
-      {r.history && (
+      {r.answers && r.answers.length > 0 && <AnswersTable answers={r.answers} />}
+
+      {r.history && !custom && (
         <p className="mt-2 text-sm text-[var(--muted)]">
           <span className="chip mr-2">History</span>
           Reported it in {r.history.reported_available} of its last {r.history.answered} answered
@@ -76,7 +125,7 @@ function ResultCard({ r, now }: { r: ResultView; now: Date }) {
         </ul>
       )}
 
-      {r.evidence && (
+      {r.evidence && !custom && (
         <details className="mt-3 rounded-xl bg-[var(--surface-2)] p-3 text-sm">
           <summary className="cursor-pointer font-semibold">Evidence</summary>
           <dl className="mt-2 grid gap-1">
@@ -107,11 +156,14 @@ export function Results({
   results,
   complete,
   explanation,
+  custom = false,
   now: nowOverride,
 }: {
   results: ResultView[]
   complete: boolean
   explanation: string
+  /** the user wrote their own questions (D-062) */
+  custom?: boolean
   now?: Date
 }) {
   const ticking = useNow()
@@ -124,7 +176,7 @@ export function Results({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="results-h" className="text-lg font-bold">
-            What the shops reported
+            {custom ? 'What each place answered' : 'What the shops reported'}
           </h2>
           <p className="text-sm text-[var(--muted)]">{explanation}</p>
         </div>
@@ -149,14 +201,14 @@ export function Results({
       )}
       <ol className="grid gap-3" aria-live="polite">
         {answers.map((r) => (
-          <ResultCard key={r.business.id} r={r} now={now} />
+          <ResultCard key={r.business.id} r={r} now={now} custom={custom} />
         ))}
       </ol>
 
       {others.length > 0 && (
         <div className="card p-4">
           <h3 className="font-bold">No answer yet, or not completed</h3>
-          <p className="mb-2 text-sm font-semibold">{NOT_UNAVAILABLE}</p>
+          <p className="mb-2 text-sm font-semibold">{custom ? NOT_A_NO : NOT_UNAVAILABLE}</p>
           <ul className="grid gap-2">
             {others.map((r) => (
               <li

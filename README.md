@@ -187,6 +187,8 @@ that matter most:
 | `SONAR_ACCESS_KEY` | Shared key sent as `X-Sonar-Key` to start a search | none (refuses if unset) |
 | `WEBHOOK_SECRET_TOKEN` | Path token for the provider webhook | none (refuses if unset) |
 | `BOLNA_API_KEY`, `BOLNA_AGENT_ID_<CATEGORY>` | Enable live calling, one agent per category | unset (demo mode only) |
+| `BOLNA_AGENT_ID_GENERAL` | Agent for searches with the user's own questions (`docs/agent/prompt_general_v1.md`) | unset (custom questions demo only) |
+| `FEATURE_CUSTOM_QUESTIONS` | Let users write their own questions for every place (D-062), e.g. "open till midnight?", "price per hour?" | off |
 | `MAX_TARGETS_PER_SEARCH` | Shops planned per search | 5 |
 | `MAX_CONCURRENT_CALLS` | Simultaneous calls | 2 |
 | `GLOBAL_DAILY_CALL_BUDGET` | Live calls per day before dispatch stops | 40 |

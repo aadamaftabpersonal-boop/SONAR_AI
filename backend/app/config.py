@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     bolna_from_phone_number: str = ""
     bolna_agent_id_pharmacy: str = ""
     bolna_agent_id_computer_repair: str = ""
+    bolna_agent_id_general: str = ""  # asks the user's own questions (D-062)
     business_seed_path: str = "data/businesses.local.yaml"
     allowed_origins: str = "http://localhost:5173"
     log_level: str = "INFO"
@@ -91,6 +92,8 @@ class Settings(BaseSettings):
     # Map, discovery and shop self opt-in (D-059..D-061)
     feature_discovery: bool = False
     feature_opt_in: bool = False
+    # The user's own questions, asked on every call (D-062)
+    feature_custom_questions: bool = False
     overpass_url: str = "https://overpass-api.de/api/interpreter"
     discovery_timeout_seconds: float = 25.0
     public_base_url: str = "http://localhost:8000"  # used only to print invite links
@@ -103,6 +106,7 @@ def bolna_agent_ids(settings: Settings) -> dict[str, str]:
     ids = {
         "pharmacy": settings.bolna_agent_id_pharmacy,
         "computer_repair": settings.bolna_agent_id_computer_repair,
+        "general": settings.bolna_agent_id_general,
     }
     return {category: agent for category, agent in ids.items() if agent}
 

@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 import { PLANS } from '../api'
-import type { ClarificationQuestion, PlanTier, PublicConfig, SearchRequest } from '../api'
+import type { ClarificationQuestion, PlanTier, PublicConfig, QuestionSpec, SearchRequest } from '../api'
 import { MapView } from './MapView'
+import { QuestionBuilder, cleanQuestions } from './QuestionBuilder'
 
 const PRESETS = [
   { label: 'Demo locality, Bengaluru', lat: 12.9716, lng: 77.5946 },
@@ -33,6 +34,8 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
   const [demo, setDemo] = useState(true)
   const [askEveryone, setAskEveryone] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(false)
+  const [questions, setQuestions] = useState<QuestionSpec[]>([])
+  const asking = questions.some((q) => q.text.trim() !== '')
 
   const cat = config.categories[category]
   const location = coords ?? { ...PRESETS[preset], label: PRESETS[preset].label }
@@ -42,6 +45,18 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
     setCategory('pharmacy')
     setItemName('Paracetamol')
     setAttributes({ strength: '500 mg' })
+    setQuestions([])
+  }
+
+  function fillTurfExample() {
+    if (config.categories.sports_turf) setCategory('sports_turf')
+    setItemName('Football turf')
+    setAttributes({})
+    setQuestions([
+      { text: 'Are you open until 12 midnight tonight?', kind: 'yes_no', want: 'yes' },
+      { text: 'Can we book the turf for football?', kind: 'yes_no', want: 'yes' },
+      { text: 'What is the price per hour?', kind: 'number', unit: 'rupees per hour', rank: 'lowest' },
+    ])
   }
 
   function useMyLocation() {
@@ -64,19 +79,21 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
   function submit(e: FormEvent) {
     e.preventDefault()
     const attrText = Object.values(attributes).filter(Boolean).join(' ')
+    const asked = cleanQuestions(questions)
     onSubmit(
       {
-        query_text: `Does anyone nearby have ${itemName} ${attrText} in stock right now?`.replace(
-          /\s+/g,
-          ' ',
-        ),
+        query_text: (asked.length
+          ? `Ask places nearby about ${itemName}`
+          : `Does anyone nearby have ${itemName} ${attrText} in stock right now?`
+        ).replace(/\s+/g, ' '),
         category,
         item: {
           name: itemName.trim(),
-          attributes: Object.fromEntries(
-            Object.entries(attributes).filter(([, v]) => v.trim() !== ''),
-          ),
+          attributes: asked.length
+            ? {}
+            : Object.fromEntries(Object.entries(attributes).filter(([, v]) => v.trim() !== '')),
         },
+        ...(asked.length ? { questions: asked } : {}),
         location: { lat: location.lat, lng: location.lng, label: location.label },
         radius_km: radius,
         demo_mode: demo,
@@ -96,6 +113,11 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
         <button type="button" className="chip chip-info cursor-pointer" onClick={fillExample}>
           Try: Paracetamol 500 mg
         </button>
+        {config.features?.custom_questions && (
+          <button type="button" className="chip chip-info cursor-pointer" onClick={fillTurfExample}>
+            Try: cheapest turf open till midnight
+          </button>
+        )}
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
@@ -132,7 +154,7 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        {cat.essential_attributes.map((attr) => (
+        {!asking && cat.essential_attributes.map((attr) => (
           <label key={attr} className="grid gap-1 text-sm">
             <span className="font-semibold capitalize">{labelOf(attr)}</span>
             <input
@@ -150,6 +172,10 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
           </label>
         ))}
       </div>
+
+      {config.features?.custom_questions && (
+        <QuestionBuilder rows={questions} onChange={setQuestions} errorFor={errorFor} />
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1 text-sm">
@@ -282,6 +308,11 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
         </label>
       </div>
 
+      {asking ? (
+        <p className="text-sm text-[var(--muted)]">
+          With your own questions, Sonar asks every place so it can compare their answers.
+        </p>
+      ) : (
       <label className="flex items-start gap-3 text-sm">
         <input
           type="checkbox"
@@ -298,6 +329,7 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
           </span>
         </span>
       </label>
+      )}
 
       {clarification && (
         <div role="alert" className="rounded-xl bg-[var(--warn-bg)] p-3 text-sm text-[var(--warn)]">
@@ -309,7 +341,10 @@ export function SearchForm({ config, busy, fieldError, clarification, onSubmit }
           </ul>
         </div>
       )}
-      {fieldError && !fieldError.field?.startsWith('item.') && fieldError.field !== 'radius_km' && (
+      {fieldError &&
+        !fieldError.field?.startsWith('item.') &&
+        !fieldError.field?.startsWith('questions') &&
+        fieldError.field !== 'radius_km' && (
         <div role="alert" className="rounded-xl bg-[var(--bad-bg)] p-3 text-sm text-[var(--bad)]">
           {fieldError.message}
         </div>

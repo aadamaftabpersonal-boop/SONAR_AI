@@ -100,10 +100,23 @@ def number_words(n: int) -> set[str]:
     thousands, rest = divmod(n, 1000)
     head = f"{' '.join(sorted(number_words(thousands)))} thousand"
     if rest == 0:
-        return {head}
-    return {f"{head} {w}" for w in number_words(rest)} | {
-        f"{head} and {w}" for w in number_words(rest)
-    }
+        forms = {head}
+    else:
+        forms = {f"{head} {w}" for w in number_words(rest)} | {
+            f"{head} and {w}" for w in number_words(rest)
+        }
+    # "twelve hundred (and fifty)": how 1,250 is often said, in India too
+    hundreds, tail = divmod(n, 100)
+    if n < 10000 and hundreds % 10 != 0:
+        for h in number_words(hundreds):
+            base = f"{h} hundred"
+            forms |= (
+                {base}
+                if tail == 0
+                else {f"{base} {w}" for w in number_words(tail)}
+                | {f"{base} and {w}" for w in number_words(tail)}
+            )
+    return forms
 
 
 def number_in_transcript(value: Decimal, transcript: str) -> bool:

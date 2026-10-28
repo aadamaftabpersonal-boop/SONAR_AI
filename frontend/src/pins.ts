@@ -1,7 +1,7 @@
 // What each shop on the map means (user request: show which shops were approached, which said
 // yes, which said no). One function decides the state; labels never imply a shop lacks the item
 // unless it said so (NFR-09), and colour is never the only signal (NFR-12).
-import type { AttemptView, CallStatus, NearbyBusiness, ResultState } from './api'
+import type { AttemptView, CallStatus, NearbyBusiness, ResultState, ResultView } from './api'
 
 export type PinState =
   | ResultState
@@ -56,6 +56,30 @@ export interface ShopPin {
   distance_km: number
   bearing_deg: number
   testLine: boolean
+  /** first in the ranking among shops that meet everything asked (custom questions, D-062) */
+  best?: boolean
+  /** the shop's ranked answer, e.g. "600 rupees per hour" (custom questions only) */
+  detail?: string | null
+}
+
+/** Custom-question searches (D-062) are about the user's criteria, not stock. */
+export const CUSTOM_LABEL: Partial<Record<PinState, string>> = {
+  REPORTED_AVAILABLE: 'Meets what you asked',
+  REPORTED_UNAVAILABLE: "Doesn't meet what you asked",
+  UNCERTAIN: 'Unclear answer',
+}
+
+export function stateLabel(state: PinState, custom = false): string {
+  return (custom && CUSTOM_LABEL[state]) || PIN_STYLE[state].label
+}
+
+/** The top-ranked shop that meets everything, when the search ranks by a number. Results come
+ *  back already ordered by the backend, so this is the first one that qualifies. */
+export function bestBusinessId(results: ResultView[] | undefined | null): string | null {
+  const top = (results ?? []).find(
+    (r) => r.result_state === 'REPORTED_AVAILABLE' && r.rank_value != null,
+  )
+  return top?.business.id ?? null
 }
 
 /** One pin per shop: the shop's latest call in this search if it was called, otherwise its
@@ -99,7 +123,17 @@ export function legendCounts(pins: ShopPin[]): { state: PinState; count: number 
   return LEGEND_ORDER.filter((s) => counts.has(s)).map((s) => ({ state: s, count: counts.get(s)! }))
 }
 
-export function pinLabel(p: ShopPin): string {
-  const base = PIN_STYLE[p.state].label
+/** The ranked number a shop gave, in its unit, for the map label. Only validated answers. */
+export function rankedAnswerText(r: ResultView): string | null {
+  if (r.rank_value == null) return null
+  const a = (r.answers ?? []).find((x) => x.kind === 'number' && x.validated && x.value === r.rank_value)
+  if (!a) return null
+  return a.unit ? `${a.value} ${a.unit}` : String(a.value)
+}
+
+export function pinLabel(p: ShopPin, custom = false): string {
+  let base = stateLabel(p.state, custom)
+  if (custom && p.detail) base += ` · ${p.detail}`
+  if (p.best) base += ' · Best answer'
   return p.testLine ? `${base} · Team test line (role-play)` : base
 }
