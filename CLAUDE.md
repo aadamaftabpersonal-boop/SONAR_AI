@@ -6,7 +6,7 @@ disagree, the code wins; fix this file.
 
 ## Sources of truth (read before changing anything substantial)
 
-- `SONAR_BIBLE_v2.md`: the *what* and *why*: requirements (FR/NFR), decisions (§43, D-001…D-061),
+- `SONAR_BIBLE_v2.md`: the *what* and *why*: requirements (FR/NFR), decisions (§43, D-001…D-062),
   assumptions and verified facts (§45), validator rules V1–V14 (§23.3).
 - `SONAR_BUILD_MAP_v2.md`: the *order*: phases, task IDs (T0.1…T20.x), gates G1a/G1, milestones
   M1/M2/M3, Definition of Done (§0.2), gating rules (§0.4), cut line (§4).
@@ -129,12 +129,35 @@ Added 2026-10-27/28 (commits `6f6b0d9`…`bda295d`):
 
 ### Verification status (important)
 
-The 2026-10-27/28 work was written in an environment without PyPI or npm. **Only the backend unit
-tests that need no fastapi/sqlalchemy (590 passed), ruff, and the secret/claims scans were run.**
-Never run yet: database/integration tests (incl. migrations 0004/0005 and
-`test_cache_reuse.py`, `test_live_api.py`, `test_map_and_optin.py`), FastAPI-dependent unit tests,
-all frontend tests, `tsc`/build, lint, and the e2e test. Expect small fixes. First job:
-run `verify_all.ps1` (or the commands above) and fix what fails.
+The 2026-10-27/28 work was written in an environment without PyPI or npm, so for a while only the
+stdlib-only backend unit tests, ruff and the secret/claims scans had ever run.
+
+**Run on 2026-10-28 (venv and node_modules are now fully installed, Python 3.12.10):**
+
+- `tasks.ps1 check`: 660 backend unit tests passed; ruff lint + format clean; secret and claims
+  scans clean.
+- Migrations 0001→0005 applied clean against Postgres on 55432.
+- `tasks.ps1 test-int`: 221 integration tests passed, after the three fixes below.
+- Frontend: 125 Vitest tests passed; `tsc -b && vite build` clean.
+- API and web both boot (`/health` → ok, `/health/ready` → ready; Vite on 5173).
+
+Three things had to be fixed to get there:
+
+1. **Real bug, `services/orchestrator.py` `drain()`.** It looped forever. `asyncio.gather` over
+   tasks that are already finished returns without yielding to the event loop, so the
+   `add_done_callback` that removes them from `_tasks` never got to run and `while self._tasks`
+   never became false. This is why the integration suite had never completed — it hung, it did not
+   fail. It would also have hung graceful shutdown in production. Fixed by removing the batch from
+   `_tasks` before awaiting it.
+2. **Stale test, `test_constraints.py`.** It asserted `CACHED_LIVE` can never be stored, but T7.4
+   (D-057) deliberately stores it and migration 0004 permits it. Split into one test that it is
+   accepted and one that a bogus origin is still rejected.
+3. **Stale test, `test_cache_reuse.py::test_a_newer_unclear_answer_blocks_an_older_clear_one`.** It
+   put the newer answer 10 minutes back, inside `business_cooldown_minutes` (15), so the shop was
+   dropped as a candidate and zero attempts were planned. Moved to 20 minutes: past the cooldown,
+   still inside the 60-minute availability TTL.
+
+Still never run: `check-wave2` (all `FEATURE_*` flags on) and the Playwright e2e suite.
 
 ### Deliberately not built / deferred
 
@@ -142,6 +165,52 @@ Race clock (T15.4), evidence replay (T15.5), voice input (T15.7), audio replay (
 line (T16.3–16.6), question compiler, watches, `/api/v1/ask` (T18), sponsor annex (Phase 19). A UI
 button for discovery (API exists). Hindi opt-in page (needs a native speaker review; no machine
 translation of consent text).
+
+### Custom questions (D-062, commit `dd0f5fa`) — NOT on this branch
+
+**Status (checked 2026-10-28): `dd0f5fa` is a dangling commit on no branch.** Its parent is
+`bda295d`, so it is a sibling of `b14e5fd`, not an ancestor of `claude/build-map-and-map-feature`.
+None of the files below exist here: no `services/general.py`, no `QuestionBuilder.tsx`, no
+`docs/agent/prompt_general_v1.md`, and `alembic/versions` stops at 0005. The only thing on this
+branch that mentions `FEATURE_CUSTOM_QUESTIONS` is this file. The work is preserved in
+`claude-work.bundle` (`refs/heads/main` → `dd0f5fa`) and must be cherry-picked or merged before any
+of the description below is true. Until then, treat this section as a plan, not as built code.
+
+Sonar is not only for stock checks. Behind `FEATURE_CUSTOM_QUESTIONS` a search can carry up to 5
+questions the user writes ("Are you open until 12 midnight tonight?", "What is the price per
+hour?"), each yes/no, number or text; a yes/no can say which answer is needed and one number can
+rank shops lowest/highest first. Flow: `services/query.py` (`_checked_questions`, safety checks,
+keys `q1..`) → `build_user_data` (`questions_text`, `questions_kinds`, `business_kind`, `topic`)
+→ the **general** Bolna agent `BOLNA_AGENT_ID_GENERAL` ("Sonar General" in the dashboard, prompt in
+`docs/agent/prompt_general_v1.md`) → extraction `answers_json` → `services/general.py`
+(quote must be in the shop's own lines, yes/no not contradicted, number heard) → `business_responses.answers`
+and `rank_value` (migration 0006) → `results.sort_results` ranks by the chosen number. UI:
+`QuestionBuilder.tsx`, the answers table in `Results.tsx`, and map labels "Meets what you asked" /
+"Doesn't meet what you asked" / "Unclear answer" with the best shop marked. Such searches always
+ask every shop and never reuse cached answers. Only tested on the simulator so far.
+
+### Bolna account state (read-only probe, 2026-10-28)
+
+`BOLNA_API_KEY` authenticates (`GET /v2/agent/all` → 200). Two agents exist and both resolve:
+
+| Agent | Id | Wired to |
+| --- | --- | --- |
+| Sonar Pharmacy | `fd8901b8-…405f` | `BOLNA_AGENT_ID_PHARMACY` |
+| Sonar General | `74b6f306-…c93b3d` | `BOLNA_AGENT_ID_COMPUTER_REPAIR` |
+
+Three things still block M1 — none of them are code:
+
+1. **`webhook_url` on the pharmacy agent is `None`.** Nothing will call back into the app, so the
+   finalizer never runs. Needs the tunnel from step 3 below.
+2. **`BOLNA_AGENT_ID_COMPUTER_REPAIR` points at "Sonar General".** That is the D-062 general agent,
+   which has a different prompt and different extractions. Since D-062 is not on this branch there
+   is no `BOLNA_AGENT_ID_GENERAL` setting for it to live in, so a `computer_repair` search would
+   dial a shop with the wrong prompt. Either leave the slot empty or build a real computer-repair
+   agent before using that category.
+3. **`BOLNA_FROM_PHONE_NUMBER` is empty**, and the agent has no `inbound_phone_number`.
+
+The agent's voice, transcriber, call settings and the 11 extraction names were not checked against
+`docs/agent/prompt_v1.md` yet — that is the next read-only probe.
 
 ## What to do next, in order
 
