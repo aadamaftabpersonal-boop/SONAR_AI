@@ -1,3 +1,5 @@
+import os
+
 from app.config import Settings
 
 
@@ -20,7 +22,11 @@ def test_defaults_match_bible_27_1():
     assert s.global_daily_call_budget == 40
 
 
-def test_wave2_features_off_by_default():
+def test_wave2_features_off_by_default(monkeypatch):
+    # check-wave2 turns every FEATURE_* on in the environment; the code defaults must still be off
+    for name in list(os.environ):
+        if name.upper().startswith("FEATURE_"):
+            monkeypatch.delenv(name)
     s = make_settings()
     flags = {k: v for k, v in s.model_dump().items() if k.startswith("feature_")}
     assert flags, "expected feature flags to exist"
