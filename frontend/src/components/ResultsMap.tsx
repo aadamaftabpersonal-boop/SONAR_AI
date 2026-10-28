@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
-import type { NearbyBusiness, SearchView } from '../api'
+import type { NearbyBusiness, ResultView, SearchView } from '../api'
 import { destinationPoint } from '../geo'
-import { PIN_STYLE, legendCounts, mergePins, pinLabel } from '../pins'
+import { PIN_STYLE, bestBusinessId, rankedAnswerText, legendCounts, mergePins, pinLabel, stateLabel } from '../pins'
 import type { PinState } from '../pins'
 import { MapView } from './MapView'
 import type { MapPin } from './MapView'
@@ -9,7 +9,16 @@ import { Radar } from './Radar'
 
 /** Where the shops are and what each one said: a real map (OpenStreetMap) or a map-free radar.
  *  Shops near the search that have not joined Sonar are shown too, and are never called. */
-export function ResultsMap({ search, nearby = [] }: { search: SearchView; nearby?: NearbyBusiness[] }) {
+export function ResultsMap({
+  search,
+  nearby = [],
+  results,
+}: {
+  search: SearchView
+  nearby?: NearbyBusiness[]
+  results?: ResultView[]
+}) {
+  const custom = !!search.custom_questions
   const [tab, setTab] = useState<'map' | 'radar'>('map')
   const [hidden, setHidden] = useState<Set<PinState>>(new Set())
   const radius = search.radius_km
@@ -18,7 +27,20 @@ export function ResultsMap({ search, nearby = [] }: { search: SearchView; nearby
       ? { lat: search.center_lat, lng: search.center_lng }
       : null
 
-  const shops = useMemo(() => mergePins(search.attempts, nearby), [search.attempts, nearby])
+  const best = bestBusinessId(results)
+  const details = useMemo(
+    () => new Map((results ?? []).map((r) => [r.business.id, rankedAnswerText(r)])),
+    [results],
+  )
+  const shops = useMemo(
+    () =>
+      mergePins(search.attempts, nearby).map((p) => ({
+        ...p,
+        best: p.id === best,
+        detail: details.get(p.id) ?? null,
+      })),
+    [search.attempts, nearby, best, details],
+  )
   const legend = useMemo(() => legendCounts(shops), [shops])
   const pins: MapPin[] = useMemo(
     () =>
@@ -28,13 +50,13 @@ export function ResultsMap({ search, nearby = [] }: { search: SearchView; nearby
             .map((p) => ({
               id: p.id,
               name: p.name,
-              label: pinLabel(p),
+              label: pinLabel(p, custom),
               color: PIN_STYLE[p.state].color,
               position: destinationPoint(centre, p.bearing_deg, p.distance_km),
             }))
         : [],
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [shops, hidden, search.center_lat, search.center_lng],
+    [shops, hidden, custom, search.center_lat, search.center_lng],
   )
 
   const toggle = (state: PinState) =>
@@ -101,7 +123,7 @@ export function ResultsMap({ search, nearby = [] }: { search: SearchView; nearby
                   className="mr-1 inline-block size-3 rounded-full"
                   style={{ background: PIN_STYLE[state].color }}
                 />
-                {PIN_STYLE[state].label}: {count}
+                {stateLabel(state, custom)}: {count}
               </button>
             </li>
           ))}
@@ -118,7 +140,7 @@ export function ResultsMap({ search, nearby = [] }: { search: SearchView; nearby
         <ul className="mt-2 grid gap-1">
           {shops.map((p) => (
             <li key={p.id}>
-              {p.name}, {p.distance_km} km: {pinLabel(p)}
+              {p.name}, {p.distance_km} km: {pinLabel(p, custom)}
             </li>
           ))}
         </ul>

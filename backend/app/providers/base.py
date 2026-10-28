@@ -11,6 +11,8 @@ from pydantic import BaseModel, Field, field_validator
 
 E164 = re.compile(r"^\+[1-9][0-9]{7,14}$")
 _MAX_VALUE_LEN = 200
+# the numbered custom-question list (D-062) is the one longer value: 5 questions with hints
+_LONG_VALUE_KEYS = {"questions_text": 1200}
 
 
 class ProviderError(Exception):
@@ -51,8 +53,11 @@ class CallRequest(BaseModel):
     @classmethod
     def _bounded(cls, v: dict[str, str]) -> dict[str, str]:
         for key, value in v.items():
-            if not isinstance(value, str) or len(value) > _MAX_VALUE_LEN:
-                raise ValueError(f"user_data[{key!r}] must be a string of at most 200 characters")
+            limit = _LONG_VALUE_KEYS.get(key, _MAX_VALUE_LEN)
+            if not isinstance(value, str) or len(value) > limit:
+                raise ValueError(
+                    f"user_data[{key!r}] must be a string of at most {limit} characters"
+                )
         return v
 
 

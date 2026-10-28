@@ -100,6 +100,8 @@ export interface SearchView {
   status: SearchStatus
   demo_mode: boolean
   category?: string | null
+  /** true when the user wrote their own questions (D-062): labels read "meets what you asked" */
+  custom_questions?: boolean
   mode?: SearchMode | null
   radius_km?: number | null
   center_lat?: number | null
@@ -141,6 +143,36 @@ export interface ResultView {
   verification_status: string | null
   flags: string[]
   note: string | null
+  /** answers to the user's own questions (D-062); null for classic searches */
+  answers?: AnswerView[] | null
+  /** the validated number used for ranking, when one question ranks */
+  rank_value?: number | null
+}
+
+export type QuestionKind = 'yes_no' | 'number' | 'text'
+
+/** One question the user writes; the backend checks it before any call (D-062). */
+export interface QuestionSpec {
+  text: string
+  kind: QuestionKind
+  want?: 'yes' | 'no' | null
+  unit?: string | null
+  rank?: 'lowest' | 'highest' | null
+}
+
+export const MAX_QUESTIONS = 5
+
+export interface AnswerView {
+  key: string
+  question: string
+  kind: QuestionKind
+  value: boolean | number | string | null
+  unit: string | null
+  quote: string | null
+  validated: boolean
+  /** whether the answer matches what the user wanted; null when no criterion was set */
+  meets: boolean | null
+  flag: string | null
 }
 
 export interface ResultsView {
@@ -225,6 +257,8 @@ export interface SearchRequest {
   mode?: SearchMode
   /** demo setting that bounds radius and shops (D-060) */
   plan?: PlanTier
+  /** the user's own questions, asked on every call (D-062) */
+  questions?: QuestionSpec[]
 }
 
 export class ApiError extends Error {

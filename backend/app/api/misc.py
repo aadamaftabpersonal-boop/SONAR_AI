@@ -71,7 +71,10 @@ def public_config(settings: Settings = Depends(get_settings)) -> PublicConfig:
         max_targets_per_search=settings.max_targets_per_search,
         simulated_banner=SIMULATED_BANNER,
         disclaimer="Sonar reports what the business said. It does not give medical advice.",
-        features={"live_ticker": settings.feature_live_ticker},
+        features={
+            "live_ticker": settings.feature_live_ticker,
+            "custom_questions": settings.feature_custom_questions,
+        },
     )
 
 

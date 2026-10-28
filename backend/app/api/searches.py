@@ -50,8 +50,12 @@ from app.services.geo import bearing_deg, distance_km
 from app.services.jobs import refresh_job
 from app.services.planning import PlannedCall, plan_order
 from app.services.plans import max_targets
-from app.services.query import parse
-from app.services.result_copy import RANKING_EXPLANATION, RETRYING_NOTE
+from app.services.query import GENERAL_AGENT, parse
+from app.services.result_copy import (
+    RANKING_EXPLANATION,
+    RETRYING_NOTE,
+    custom_ranking_explanation,
+)
 from app.services.results import (
     derive_result_state,
     sort_results,
@@ -96,11 +100,12 @@ def _require_live_calling(payload: SearchRequest, providers: ProviderRegistry) -
     if not providers.has("bolna"):
         raise ApiError(503, ErrorClass.PROVIDER_UNAVAILABLE, unavailable)
     has_agent = getattr(providers.get("bolna"), "has_agent", None)
-    if has_agent is not None and not has_agent(payload.category):
+    agent = GENERAL_AGENT if payload.questions else payload.category
+    if has_agent is not None and not has_agent(agent):
         raise ApiError(
             503,
             ErrorClass.PROVIDER_UNAVAILABLE,
-            f"No voice agent is configured for '{payload.category}'. Use demo mode.",
+            f"No voice agent is configured for '{agent}'. Use demo mode.",
         )
 
 
@@ -118,6 +123,9 @@ def create_search(
     clock: Callable[[], datetime] = Depends(get_clock),
     providers: ProviderRegistry = Depends(get_providers),
 ) -> SearchCreated:
+    if payload.questions and not settings.feature_custom_questions:
+        off = "Custom questions are not enabled on this server."
+        raise ApiError(422, ErrorClass.VALIDATION, off, "questions")
     try:
         parsed = parse(payload, get_categories())
     except QueryValidationError as exc:
@@ -189,13 +197,14 @@ def create_search(
             message=message,
         )
 
-    fast = settings.feature_stop_rule and parsed.mode == SearchMode.FAST
+    # custom-question searches call every shop: "cheapest" or "open latest" needs all answers
+    fast = settings.feature_stop_rule and parsed.mode == SearchMode.FAST and not parsed.questions
     job = jobs.create(
         **common,
         status=SearchStatus.CREATED,
         planned_targets=len(selection.targets) + len(cached),
         deadline_at=now + timedelta(seconds=settings.search_deadline_seconds),
-        mode=parsed.mode,
+        mode=SearchMode.THOROUGH if parsed.questions else parsed.mode,
         stop_rule={"k": settings.stop_rule_k} if fast else None,
     )
     provider = "simulated" if parsed.demo_mode else "bolna"
@@ -373,6 +382,7 @@ def get_search(search_id: str, session: Session = Depends(get_session)) -> Searc
         status=SearchStatus(job.status),
         demo_mode=job.demo_mode,
         category=job.category,
+        custom_questions=bool((job.parsed_query or {}).get("questions")),
         mode=SearchMode(job.mode),
         radius_km=float(job.radius_km) if job.radius_km is not None else None,
         center_lat=job.center_lat,
@@ -424,11 +434,18 @@ def get_results(
                 view.note = RETRYING_NOTE  # keep the earlier silence visible while the retry runs
             items.append(view)
 
+    parsed = ParsedQuery.model_validate(job.parsed_query) if job.parsed_query else None
+    ranked = next((q for q in parsed.questions if q.rank), None) if parsed else None
+    explanation = (
+        custom_ranking_explanation(ranked.text if ranked else None, ranked.rank if ranked else None)
+        if parsed and parsed.questions
+        else RANKING_EXPLANATION
+    )
     return ResultsView(
         search_id=job.id,
         complete=SearchStatus(job.status) in TERMINAL_JOB,
-        ranking_explanation=RANKING_EXPLANATION,
-        results=sort_results(items),
+        ranking_explanation=explanation,
+        results=sort_results(items, ranked.rank if ranked else None),
     )
 
 

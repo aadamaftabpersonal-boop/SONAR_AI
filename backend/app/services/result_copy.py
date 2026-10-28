@@ -45,4 +45,14 @@ RANKING_EXPLANATION = (
     "Order does not mean one answer is more true than another."
 )
 
+
+def custom_ranking_explanation(rank_question: str | None, rank: str | None) -> str:
+    """Wording for custom-question searches (D-062)."""
+    head = "Ordered by: shops that meet everything you asked first, then those with unclear answers"
+    if rank_question and rank:
+        order = "lowest" if rank == "lowest" else "highest"
+        head += f', and within each group by the {order} answer to "{rank_question}"'
+    return head + ". Order does not mean one answer is more true than another."
+
+
 SIMULATED_BANNER = "SIMULATED: not real calls"

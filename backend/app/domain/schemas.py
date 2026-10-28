@@ -4,7 +4,8 @@ from __future__ import annotations
 
 import unicodedata
 from datetime import datetime
-from typing import Any
+from enum import StrEnum
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -30,6 +31,19 @@ MAX_RADIUS_KM = 25.0
 # would reject vowel signs), plus space and a few punctuation marks used in product names.
 # Anything else is rejected, never escaped (Bible 23.2).
 _SAFE_PUNCTUATION = frozenset(" .,/%+-")
+
+
+_QUESTION_PUNCTUATION = frozenset(" .,/%+-?'()&:₹")
+
+
+def is_safe_question(value: str) -> bool:
+    """Like is_safe_text, but a question may also contain ? ' ( ) & : and the rupee sign."""
+    if not 3 <= len(value) <= 140:
+        return False
+    return all(
+        ch in _QUESTION_PUNCTUATION or unicodedata.category(ch)[0] in {"L", "M", "N"}
+        for ch in value
+    )
 
 
 def is_safe_text(value: str) -> bool:
@@ -58,6 +72,30 @@ class ItemSpec(BaseModel):
         return v
 
 
+class QuestionKind(StrEnum):
+    YES_NO = "yes_no"
+    NUMBER = "number"
+    TEXT = "text"
+
+
+class QuestionSpec(BaseModel):
+    """One thing the user wants every shop asked (D-062). The text is checked like any other
+    user input before it can reach the voice agent (query.parse)."""
+
+    text: str = Field(min_length=3, max_length=140)
+    kind: QuestionKind = QuestionKind.YES_NO
+    want: Literal["yes", "no"] | None = None  # yes/no only: the answer the user needs
+    unit: str | None = Field(default=None, max_length=30)  # number only, e.g. "rupees per hour"
+    rank: Literal["lowest", "highest"] | None = None  # number only: order shops by this answer
+
+
+class Question(QuestionSpec):
+    key: str  # q1, q2, ... assigned by the server, never by the client
+
+
+MAX_QUESTIONS = 5
+
+
 class SearchRequest(BaseModel):
     query_text: str = Field(min_length=1, max_length=500)
     category: str = Field(min_length=1, max_length=40)
@@ -69,6 +107,8 @@ class SearchRequest(BaseModel):
     demo_mode: bool = False
     mode: SearchMode = SearchMode.FAST
     plan: PlanTier | None = None  # demo setting (D-060); None keeps the server-wide limits
+    # Custom questions (D-062): when present, the general agent asks exactly these
+    questions: list[QuestionSpec] | None = Field(default=None, max_length=MAX_QUESTIONS)
 
 
 class ParsedQuery(BaseModel):
@@ -87,6 +127,7 @@ class ParsedQuery(BaseModel):
     demo_mode: bool = False
     mode: SearchMode = SearchMode.FAST
     plan: PlanTier | None = None
+    questions: list[Question] = Field(default_factory=list)
 
 
 class ClarificationQuestion(BaseModel):
@@ -172,6 +213,7 @@ class SearchView(BaseModel):
     status: SearchStatus
     demo_mode: bool
     category: str | None = None
+    custom_questions: bool = False
     mode: SearchMode | None = None
     radius_km: float | None = None
     center_lat: float | None = None  # the search point, so the map can place shops from
@@ -215,8 +257,24 @@ class HistoryView(BaseModel):
     label: str = "HISTORY"
 
 
+class AnswerView(BaseModel):
+    """One custom question's validated answer (D-062). `value` is None unless validated."""
+
+    key: str
+    question: str
+    kind: QuestionKind
+    value: bool | float | str | None = None
+    unit: str | None = None
+    quote: str | None = None
+    validated: bool = False
+    meets: bool | None = None
+    flag: str | None = None
+
+
 class ResultView(BaseModel):
     history: HistoryView | None = None
+    answers: list[AnswerView] | None = None  # custom-question searches only
+    rank_value: float | None = None
     business: BusinessRef
     result_state: ResultState
     data_origin: DataOrigin

@@ -204,12 +204,13 @@ export default function App() {
           {config?.features?.live_ticker && searchId && (
             <Ticker searchId={searchId} running={running} />
           )}
-          <ResultsMap search={search} nearby={nearby} />
+          <ResultsMap search={search} nearby={nearby} results={results?.results} />
           {results && (
             <Results
               results={results.results}
               complete={results.complete}
               explanation={results.ranking_explanation}
+              custom={!!search.custom_questions}
             />
           )}
           {results && <TrustLedger results={results.results} />}

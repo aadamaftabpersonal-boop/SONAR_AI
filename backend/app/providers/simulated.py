@@ -154,6 +154,62 @@ def _script(scenario: str, item: str) -> tuple[str, dict[str, Any]]:
     raise ProviderRejected(f"unknown simulator scenario: {scenario}")
 
 
+_GENERAL_SCENARIOS = {
+    "available",
+    "available_no_price",
+    "injection",
+    "unavailable",
+    "alternative_only",
+    "ambiguous",
+    "contradictory",
+    "evidence_missing",
+}
+
+
+def _general_script(
+    scenario: str, user_data: dict[str, str], call_id: str
+) -> tuple[str, dict[str, Any]]:
+    """A scripted call for custom questions (D-062): the agent asks each question in order and
+    the shop answers. Positive scenarios say yes and give a number; negative ones say no to the
+    first yes/no question; unsure ones hedge every answer."""
+    questions = [
+        line.split(". ", 1)[1].rsplit(" (", 1)[0]
+        for line in user_data["questions_text"].splitlines()
+        if ". " in line
+    ]
+    kinds = user_data.get("questions_kinds", "").split(",")
+    number = 300 + (int(hashlib.sha256(call_id.encode()).hexdigest(), 16) % 10) * 50
+    lines = [
+        "agent: Hello, this is an automated assistant calling for Sonar. I'm checking a quick "
+        "fact for a customer. Is now an okay moment? This call is transcribed.",
+        "shop: Yes, go ahead.",
+    ]
+    answers: dict[str, Any] = {}
+    said_no = False
+    for i, (text, kind) in enumerate(zip(questions, kinds, strict=False), start=1):
+        lines.append(f"agent: {text}")
+        if scenario in {"ambiguous", "contradictory", "evidence_missing"}:
+            reply, answer = "Not sure, maybe, let me check.", "unsure"
+        elif kind == "number":
+            reply, answer = f"It is {number} rupees.", str(number)
+        elif kind == "text":
+            reply = "Yes, there is space at the back."
+            answer = reply
+        elif scenario in {"unavailable", "alternative_only"} and not said_no:
+            reply, answer, said_no = "No, we don't.", "no", True
+        else:
+            reply, answer = "Yes, we do.", "yes"
+        lines.append(f"shop: {reply}")
+        quote = reply.rstrip(".") if scenario != "evidence_missing" else "Yes absolutely"
+        answers[f"q{i}"] = {"answer": answer, "quote": quote}
+    transcript = "\n".join(lines) + "\n" + _close()
+    return transcript, {
+        "answers_json": answers,
+        "call_outcome": "human",
+        "opt_out_requested": "no",
+    }
+
+
 def _close() -> str:
     return (
         "agent: Thank you, that's all I needed. I haven't committed to anything on anyone's "
@@ -258,7 +314,10 @@ class SimulatedVoiceProvider:
                 provider_status=terminal,
                 raw={"id": call_id, "status": terminal, "simulated": True},
             )
-        transcript, extracted = _script(scenario, _item_text(user_data))
+        if user_data.get("questions_text") and scenario in _GENERAL_SCENARIOS:
+            transcript, extracted = _general_script(scenario, user_data, call_id)
+        else:
+            transcript, extracted = _script(scenario, _item_text(user_data))
         duration = max(20, len(transcript) // 12)
         return ProviderCallRecord(
             provider_call_id=call_id,

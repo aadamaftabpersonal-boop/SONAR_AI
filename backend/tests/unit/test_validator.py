@@ -501,3 +501,15 @@ def test_a_real_alternative_still_shows():
     e = ex(exact_match_confirmed="no", alternative_offered="Crocin 650", price_amount=None)
     r = check(e, transcript=t)
     assert r.availability is A.ALTERNATIVE_ONLY and r.alternative_note == "Crocin 650"
+
+
+@pytest.mark.parametrize(
+    ("n", "spoken"),
+    [
+        (1200, "twelve hundred"),
+        (1250, "twelve hundred and fifty"),
+        (1500, "one thousand five hundred"),
+    ],
+)
+def test_hundreds_spoken_the_indian_way_are_heard(n, spoken):
+    assert number_in_transcript(Decimal(n), f"shop: it is {spoken} rupees")

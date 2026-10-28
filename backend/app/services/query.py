@@ -15,11 +15,15 @@ from app.domain.schemas import (
     ClarificationQuestion,
     ParsedQuery,
     QueryValidationError,
+    Question,
+    QuestionKind,
+    QuestionSpec,
     Refusal,
     SearchRequest,
+    is_safe_question,
     is_safe_text,
 )
-from app.services.categories import ALLOWED_REQUIRED_FIELDS, CategoryConfig
+from app.services.categories import ALLOWED_REQUIRED_FIELDS, CategoryConfig, get_categories
 from app.services.plans import radius_error
 
 _ATTR_KEY = re.compile(r"^[a-z][a-z0-9_]{0,29}$")
@@ -39,6 +43,49 @@ _INSTRUCTION_LIKE = re.compile(
 
 def _unsafe_free_text(value: str) -> bool:
     return len(value.split()) > _MAX_WORDS or bool(_INSTRUCTION_LIKE.search(value))
+
+
+_MAX_QUESTION_WORDS = 25
+
+
+def _checked_questions(specs: list[QuestionSpec]) -> list[Question]:
+    """Validate custom questions (D-062) and give them server-side keys q1..qN.
+
+    A question is spoken to a shopkeeper by the agent, so it gets the same treatment as any user
+    text that reaches the agent: a character whitelist, a length limit and the instruction-like
+    check. Options that do not fit the question's kind are rejected, not ignored."""
+    out: list[Question] = []
+    ranked = 0
+    for i, spec in enumerate(specs, start=1):
+        field = f"questions.{i - 1}"
+        text = " ".join(spec.text.split())
+        if (
+            not is_safe_question(text)
+            or len(text.split()) > _MAX_QUESTION_WORDS
+            or _INSTRUCTION_LIKE.search(text)
+        ):
+            raise QueryValidationError(field, f"question {i} is not an acceptable question")
+        if spec.kind != QuestionKind.YES_NO and spec.want is not None:
+            raise QueryValidationError(
+                field, f"question {i}: only yes/no questions take a wanted answer"
+            )
+        if spec.kind != QuestionKind.NUMBER and (spec.unit or spec.rank):
+            raise QueryValidationError(
+                field, f"question {i}: only number questions take a unit or ranking"
+            )
+        unit = " ".join(spec.unit.split()) if spec.unit else None
+        if unit and (not is_safe_text(unit) or _unsafe_free_text(unit)):
+            raise QueryValidationError(field, f"question {i}: the unit is not acceptable")
+        if spec.rank:
+            ranked += 1
+        out.append(
+            Question(
+                key=f"q{i}", text=text, kind=spec.kind, want=spec.want, unit=unit, rank=spec.rank
+            )
+        )
+    if ranked > 1:
+        raise QueryValidationError("questions", "only one question can be used to rank shops")
+    return out
 
 
 REFUSAL_MESSAGE = (
@@ -73,6 +120,8 @@ def parse(
             )
         attributes[key] = value.strip()
 
+    questions = _checked_questions(request.questions or [])
+
     # 2. Category
     cfg = categories.get(request.category)
     if cfg is None:
@@ -81,6 +130,7 @@ def parse(
 
     # 3. High-risk content (applies to everything the user typed, including free text)
     texts = [request.item.name, request.query_text, *attributes.values()]
+    texts += [q.text for q in questions] + [q.unit or "" for q in questions]
     if cfg.blocked_terms and _blocked_term(texts, cfg.blocked_terms):
         return Refusal(message=REFUSAL_MESSAGE)
 
@@ -102,23 +152,23 @@ def parse(
             "required_fields", f"unknown required fields: {', '.join(sorted(unknown))}"
         )
 
-    # 6. Anything essential that is missing or conflicting becomes a question, never a guess
-    questions: list[ClarificationQuestion] = []
+    # 6. Anything essential that is missing or conflicting becomes a question, never a guess.
+    # With custom questions the user has said exactly what to ask, so the category's essential
+    # attributes (e.g. a medicine's strength) are not required.
+    clarify: list[ClarificationQuestion] = []
     if request.location is None:
-        questions.append(
-            ClarificationQuestion(field="location", question="Where should we search?")
-        )
-    for attr in cfg.essential_attributes:
+        clarify.append(ClarificationQuestion(field="location", question="Where should we search?"))
+    for attr in [] if questions else cfg.essential_attributes:
         if not attributes.get(attr):
             label = attr.replace("_", " ")
-            questions.append(
+            clarify.append(
                 ClarificationQuestion(
                     field=f"item.attributes.{attr}", question=f"What {label} should we ask about?"
                 )
             )
     hint = _WITHIN_KM.search(request.query_text)
     if hint and abs(float(hint.group(1)) - request.radius_km) > 1e-9:
-        questions.append(
+        clarify.append(
             ClarificationQuestion(
                 field="radius_km",
                 question=(
@@ -129,13 +179,13 @@ def parse(
         )
     lowered = request.query_text.lower()
     if "open now" in lowered and "tomorrow" in lowered:
-        questions.append(
+        clarify.append(
             ClarificationQuestion(
                 field="query_text", question="Do you need it open now, or tomorrow?"
             )
         )
-    if questions:
-        return Clarification(questions=questions)
+    if clarify:
+        return Clarification(questions=clarify)
 
     assert request.location is not None
     return ParsedQuery(
@@ -152,6 +202,7 @@ def parse(
         demo_mode=request.demo_mode,
         mode=request.mode,
         plan=request.plan,
+        questions=questions,
     )
 
 
@@ -172,14 +223,53 @@ def spoken(text: str) -> str:
     return _UNIT.sub(lambda m: f" {_SPOKEN_UNITS[m.group(1).lower()]}", text)
 
 
-def build_user_data(parsed: ParsedQuery) -> dict[str, str]:
+def build_user_data(parsed: ParsedQuery, business_kind: str = "business") -> dict[str, str]:
     """The only data that flows to the voice agent (Bible 30). Whitelisted keys, safe values."""
     attributes_text = spoken(
         ", ".join(f"{k.replace('_', ' ')} {v}" for k, v in parsed.attributes.items())
     )
-    return {
+    data = {
         "category": parsed.category,
         "item": parsed.item_name,
         "attributes_text": attributes_text,
         "required_fields_text": ", ".join(f.replace("_", " ") for f in parsed.required_fields),
     }
+    if parsed.questions:
+        data.update(question_user_data(parsed, business_kind))
+    return data
+
+
+_HINT = {
+    QuestionKind.YES_NO: "answer yes or no",
+    QuestionKind.NUMBER: "a number",
+    QuestionKind.TEXT: "a short answer",
+}
+
+
+def question_user_data(parsed: ParsedQuery, business_kind: str = "business") -> dict[str, str]:
+    """The general agent's call data (D-062): numbered questions with an answer hint each."""
+    lines = []
+    for n, q in enumerate(parsed.questions, start=1):
+        hint = _HINT[q.kind]
+        if q.kind == QuestionKind.NUMBER and q.unit:
+            hint = f"a number, in {q.unit}"
+        lines.append(f"{n}. {spoken(q.text)} ({hint})")
+    return {
+        "business_kind": business_kind,
+        "topic": spoken(" ".join([parsed.item_name, *parsed.attributes.values()]).strip()),
+        "questions_text": "\n".join(lines),
+        "questions_kinds": ",".join(q.kind.value for q in parsed.questions),
+    }
+
+
+GENERAL_AGENT = "general"
+
+
+def agent_key_for(parsed: ParsedQuery) -> str:
+    """Searches with custom questions use the general agent; the rest the category's agent."""
+    return GENERAL_AGENT if parsed.questions else parsed.category
+
+
+def business_noun(category: str) -> str:
+    cfg = get_categories().get(category)
+    return cfg.business_noun if cfg else "business"

@@ -39,7 +39,7 @@ from app.services.finalizer import (
     plan_retry,
 )
 from app.services.jobs import enforce_deadlines, refresh_job
-from app.services.query import build_user_data
+from app.services.query import agent_key_for, build_user_data, business_noun
 from app.services.retention import purge_old
 
 log = logging.getLogger("sonar.orchestrator")
@@ -113,10 +113,10 @@ class Orchestrator:
             parsed = ParsedQuery.model_validate(job.parsed_query)
             request = CallRequest(
                 attempt_id=attempt.id,
-                agent_key=job.category or parsed.category,
+                agent_key=agent_key_for(parsed),
                 to_e164=business.phone_e164,
                 from_e164=self.settings.bolna_from_phone_number or None,
-                user_data=build_user_data(parsed),
+                user_data=build_user_data(parsed, business_noun(parsed.category)),
             )
             attempt_id, provider_name, job_id = attempt.id, attempt.provider, job.id
             if job.status == SearchStatus.CREATED:

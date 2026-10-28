@@ -318,6 +318,9 @@ class BusinessResponse(Base):
         Text, nullable=False, server_default=text("'REPORTED_BY_PHONE'")
     )
     answer_timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    # custom questions (D-062): one validated entry per question, and the ranked number if any
+    answers: Mapped[list[dict[str, Any]] | None] = mapped_column(JSONB)
+    rank_value: Mapped[Decimal | None] = mapped_column(Numeric(14, 2))
     availability_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     price_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = _now()

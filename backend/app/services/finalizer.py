@@ -33,6 +33,7 @@ from app.domain.transitions import is_terminal, map_bolna_status, retry_eligible
 from app.providers.base import ProviderError
 from app.providers.registry import ProviderRegistry
 from app.services.categories import get_categories
+from app.services.general import GeneralAnswer, validate_general
 from app.services.jobs import refresh_job
 from app.services.stats import apply_outcome
 from app.services.stopping import maybe_stop
@@ -164,7 +165,7 @@ def _record_history(
     session: Session,
     attempt: CallAttempt,
     status: CallStatus,
-    answer: ValidatedAnswer | None,
+    answer: ValidatedAnswer | GeneralAnswer | None,
     duration_seconds: int | None,
     now: datetime,
     settings: Settings,
@@ -190,10 +191,12 @@ def _record_history(
 
 def _store_result(
     session: Session, attempt: CallAttempt, job: SearchJob, record, now: datetime
-) -> tuple[ValidatedAnswer, bool]:
+) -> tuple[ValidatedAnswer | GeneralAnswer, bool]:
     """Validate and store one call's result. Returns the validated answer and whether a response
     row was newly written (False on a repeat finalize)."""
     parsed = ParsedQuery.model_validate(job.parsed_query)
+    if parsed.questions:
+        return _store_general(session, attempt, job, record, now, parsed)
     price_max = get_categories()[parsed.category].price_max_plausible_inr
     answer = validate(
         provider_status=record.provider_status,
@@ -203,7 +206,6 @@ def _store_result(
         answer_time=now,
         price_max=price_max,
     )
-    attempts = AttemptRepo(session)
 
     if not answer.create_response:
         # voicemail / IVR / not completed: no response row, so it can never read as unavailable
@@ -236,14 +238,55 @@ def _store_result(
     )
 
     if answer.opt_out and written:  # only on the first write, so a repeat finalize is a no-op
-        # an explicit "stop calling me" takes effect immediately and permanently (FR-24)
-        BusinessRepo(session).mark_opt_out(attempt.business_id)
-        cancelled = attempts.cancel_pending_for_business(attempt.business_id, "OPTED_OUT")
-        AuditRepo(session).add(
-            "system",
-            "opt_out_recorded",
-            search_job_id=job.id,
-            business_id=attempt.business_id,
-            detail={"cancelled_pending": cancelled},
-        )
+        _record_opt_out(session, attempt, job)
+    return answer, written
+
+
+def _record_opt_out(session: Session, attempt: CallAttempt, job: SearchJob) -> None:
+    # an explicit "stop calling me" takes effect immediately and permanently (FR-24)
+    BusinessRepo(session).mark_opt_out(attempt.business_id)
+    cancelled = AttemptRepo(session).cancel_pending_for_business(attempt.business_id, "OPTED_OUT")
+    AuditRepo(session).add(
+        "system",
+        "opt_out_recorded",
+        search_job_id=job.id,
+        business_id=attempt.business_id,
+        detail={"cancelled_pending": cancelled},
+    )
+
+
+def _store_general(
+    session: Session, attempt: CallAttempt, job: SearchJob, record, now: datetime, parsed
+) -> tuple[GeneralAnswer, bool]:
+    """Custom questions (D-062): validate every answer against the shop's own words."""
+    answer = validate_general(
+        provider_status=record.provider_status,
+        transcript=record.transcript,
+        extracted=record.extracted,
+        query=parsed,
+        answer_time=now,
+    )
+    if not answer.create_response:
+        attempt.failure_reason = answer.failure_reason
+        return answer, False
+    written = ResponseRepo(session).insert_once(
+        call_attempt_id=attempt.id,
+        search_job_id=job.id,
+        business_id=attempt.business_id,
+        data_origin="SIMULATED" if attempt.provider == "simulated" else "LIVE_CALL",
+        availability=answer.availability.value,
+        exact_match=answer.exact_match.value,
+        matched_attributes={},
+        answer_summary=answer.answer_summary,
+        evidence_excerpt=answer.evidence_excerpt,
+        evidence_validated=answer.evidence_validated,
+        provider_extracted=record.extracted,
+        extraction_status=answer.extraction_status.value,
+        validation_flags=answer.validation_flags,
+        answers=[a.as_dict() for a in answer.answers],
+        rank_value=answer.rank_value,
+        answer_timestamp=now,
+    )
+    if answer.opt_out and written:
+        _record_opt_out(session, attempt, job)
     return answer, written

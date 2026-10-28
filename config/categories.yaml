@@ -2,6 +2,7 @@
 categories:
   pharmacy:
     display_name: Pharmacy (non-prescription items only)
+    business_noun: pharmacy
     essential_attributes: [strength]
     blocked_terms_file: config/blocked_pharmacy_terms.txt
     required_fields_default: [availability, price]
@@ -9,7 +10,15 @@ categories:
     osm_tags: [amenity=pharmacy, healthcare=pharmacy]
   computer_repair:
     display_name: Computer and phone repair
+    business_noun: repair shop
     essential_attributes: [device_model, problem]
     required_fields_default: [availability_today, price]
     price_max_plausible_inr: 200000
     osm_tags: [shop=computer, shop=mobile_phone, craft=electronics_repair]
+  sports_turf:
+    display_name: Sports turfs and courts
+    business_noun: sports turf
+    essential_attributes: []
+    required_fields_default: [availability]
+    price_max_plausible_inr: 100000
+    osm_tags: [leisure=pitch, leisure=sports_centre]
