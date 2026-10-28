@@ -42,8 +42,7 @@ def turf_body(**over):
     return search_body(
         category="sports_turf",
         item={"name": "football turf", "attributes": {}},
-        questions=QUESTIONS,
-        **over,
+        **{"questions": QUESTIONS, **over},  # a caller may replace the default questions
     )
 
 
